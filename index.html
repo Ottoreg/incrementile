@@ -153,7 +153,7 @@
   .mini-fill{height:100%;width:100%;background:linear-gradient(90deg,var(--kiln),var(--bad));transition:width .1s linear}
   .mini-pad{position:relative;width:100%;aspect-ratio:1;border-radius:16px;touch-action:none;overflow:hidden;
     -webkit-user-select:none;user-select:none;
-    display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);
+    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;
     background:radial-gradient(40% 34% at 38% 30%, color-mix(in srgb,#fff 42%, var(--tile,#c56a3c)) 0%, transparent 60%), var(--tile,#c56a3c);
     box-shadow:inset 0 -10px 22px rgba(0,0,0,.3), inset 0 8px 16px rgba(255,255,255,.22)}
   .lump{background-color:color-mix(in srgb,#2e2018 60%, transparent);
@@ -171,7 +171,7 @@
 <div class="app" id="root">
   <div class="topbar">
     <div class="brand">Incrementile</div>
-    <div class="stat money"><div class="v" id="v-money">50 €</div><div class="l">Trésorerie</div></div>
+    <div class="stat money"><div class="v" id="v-money">50 ₯</div><div class="l">Trésorerie</div></div>
     <div class="stat clay"><div class="v" id="v-clay">0</div><div class="l">Argile</div></div>
     <button class="mini-btn" data-action="theme" title="Thème">◑</button>
   </div>
@@ -187,6 +187,9 @@
 
       <div class="sec-title"><h2>Recettes</h2><small>argile · cuisson</small></div>
       <div class="card" id="recipe-card"></div>
+
+      <div class="sec-title" id="worker-title" hidden><h2>Ouvriers</h2><small>fabrication automatique</small></div>
+      <div class="card" id="worker-card" hidden></div>
     </section>
 
     <!-- COMMANDES -->
@@ -240,6 +243,7 @@
     {id:'cintrage',   name:'Cintrage',              desc:"Débloque la Tuile canal",           cost:60,    kind:'recipe'},
     {id:'etabli2',    name:'Deuxième établi',       desc:"+1 fabrication simultanée",         cost:150,   kind:'upg'},
     {id:'fournisseur',name:"Fournisseur d'argile",  desc:"Argile 25 % moins chère",           cost:220,   kind:'upg'},
+    {id:'apprentis',  name:'Recruter des apprentis',desc:"Embauche des ouvriers qui fabriquent tout seuls", cost:350, kind:'upg'},
     {id:'emaillage',  name:'Émaillage',             desc:"Débloque le Carreau vernissé",      cost:450,   kind:'recipe'},
     {id:'four',       name:'Four rapide',           desc:"Cuisson 25 % plus rapide",          cost:650,   kind:'upg'},
     {id:'carnet',     name:'Carnet de commandes',   desc:"+2 commandes en attente",           cost:1000,  kind:'upg'},
@@ -249,16 +253,16 @@
     {id:'dorure',     name:'Dorure à la feuille',   desc:"Débloque la Tuile émaillée d'or",   cost:17000, kind:'recipe'},
   ];
 
-  const CLIENTS = ["Mme Renaud","Atelier Belleville","M. Costa","La Villa Rose","Chantier du Vieux-Port",
-    "Toiture Lefranc","Le Riad Nour","Mairie de Céret","M. et Mme Aubert","Restaurant L'Argile",
-    "Domaine des Oliviers","Cabinet Vidal","La Maison Bleue","Hôtel du Cloître"];
+  const CLIENTS = ["Le Sénateur Flavius","Villa Pompéienne","Temple d'Apollon","Livia Drusilla","Quintus le Marchand",
+    "Thermes d'Ostie","La Domus Aurea","Cornelia","Atelier du Forum","Marcus le Bâtisseur",
+    "Théâtre d'Épidaure","Prêtresse Julia","Villa Adriana","Le Port de Pouzzoles"];
 
   const SAVE_KEY = 'incrementile.save.v2';
   const CLAY_BUNDLE = 10, CLAY_UNIT = 0.8;
 
   let state = {
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
-    nextOrderAt:0, lastSave:Date.now()
+    workers:{}, workerProg:{}, nextOrderAt:0, lastSave:Date.now()
   };
 
   // ---------- derived modifiers ----------
@@ -271,6 +275,8 @@
   const rewardMult  = () => (has('reputation')?1.25:1);
   const knowsRecipe = r => r.tech === null || has(r.tech);
   const knownRecipes = () => RECIPES.filter(knowsRecipe);
+  const workersOn   = () => has('apprentis');
+  const workerCost  = r => Math.floor(r.value * 8 * Math.pow(1.6, state.workers[r.id]||0));
 
   // ---------- format ----------
   const SUF = ['','K','M','Md','B','T'];
@@ -281,7 +287,7 @@
     const m = n/Math.pow(1000,t), d = m<10?2:m<100?1:0;
     return m.toFixed(d) + SUF[t];
   }
-  const eur = n => fmt(n) + ' €';
+  const eur = n => fmt(n) + ' ₯';
 
   // ---------- persistence ----------
   function save(){ state.lastSave = Date.now(); try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){} }
@@ -291,6 +297,7 @@
       Object.assign(state, s);
       state.learned = s.learned||{}; state.inventory = s.inventory||{};
       state.crafts = s.crafts||[]; state.orders = s.orders||[];
+      state.workers = s.workers||{}; state.workerProg = s.workerProg||{};
       return true;
     }catch(e){ return false; }
   }
@@ -301,6 +308,7 @@
       if(now >= c.end){ state.inventory[c.tileId] = (state.inventory[c.tileId]||0) + (c.yield||1); return false; }
       return true;
     });
+    runWorkers(Math.min(now - state.lastSave, 8*3600*1000));
   }
 
   // ---------- orders ----------
@@ -331,20 +339,20 @@
     if(state.clay < r.clay) return toast("Plus assez d'argile");
     state.clay -= r.clay;
     const now = Date.now();
-    const timeMult = 1 - 0.4*q;                 // beau modelage = cuisson plus rapide
+    const timeMult = 1 - 0.5*q;                    // beau modelage = cuisson bien plus rapide
     const dur = r.time*1000*speedMult()*timeMult;
-    const yieldN = q >= 0.9 ? 2 : 1;            // chef-d'œuvre = tuile bonus
+    const yieldN = q >= 1 ? 3 : q >= 0.7 ? 2 : 1;  // modelage parfait = 2 tuiles bonus
     state.crafts.push({ tileId:id, start:now, end:now+dur, yield:yieldN });
-    if(q >= 0.9)      toast(`Chef-d'œuvre ! Modelage ${Math.round(q*100)} % · tuile bonus à la sortie`);
-    else if(q >= 0.6) toast(`Beau modelage ${Math.round(q*100)} % · cuisson accélérée`);
-    else              toast(`Modelage ${Math.round(q*100)} % · c'est parti pour la cuisson`);
+    if(q >= 1)        toast(`Chef-d'œuvre ! +2 tuiles bonus · cuisson éclair`);
+    else if(q >= 0.7) toast(`Belle tuile (${Math.round(q*100)} %) · +1 tuile bonus · cuisson accélérée`);
+    else              toast(`Tuile modelée (${Math.round(q*100)} %) · c'est parti pour la cuisson`);
     save(); renderAll();
   }
 
   // ---------- clay-modelling mini-game ----------
   let mini = null;
   function openMini(recipe, onDone){
-    const pad = $('mini-pad'), N = 5, total = N*N;
+    const pad = $('mini-pad'), N = 3, total = N*N;
     $('mini-title').textContent = 'Modelage — ' + recipe.name;
     pad.style.setProperty('--tile', recipe.color);
     pad.innerHTML = '';
@@ -407,6 +415,32 @@
     toast(`Nouvelle méthode : <b>${m.name}</b>`);
     save(); renderAll();
   }
+  function hireWorker(id){
+    if(!workersOn()) return;
+    const r = R(id), cost = workerCost(r);
+    if(state.money < cost) return toast("Pas assez pour embaucher");
+    state.money -= cost; state.workers[id] = (state.workers[id]||0)+1;
+    toast(`Ouvrier embauché · ${r.name}`);
+    save(); renderAll();
+  }
+  // ouvriers : fabrication automatique, sans mini-jeu ni bonus
+  function runWorkers(dtMs){
+    if(!workersOn()) return false;
+    let changed = false;
+    knownRecipes().forEach(r => {
+      const w = state.workers[r.id]||0; if(w <= 0) return;
+      const threshold = r.time*1000*speedMult();
+      let prog = (state.workerProg[r.id]||0) + dtMs*w, guard = 0;
+      while(prog >= threshold && guard < 100000){
+        if(state.clay < r.clay){ prog = threshold; break; }   // en attente d'argile
+        state.clay -= r.clay;
+        state.inventory[r.id] = (state.inventory[r.id]||0)+1;
+        prog -= threshold; changed = true; guard++;
+      }
+      state.workerProg[r.id] = prog;
+    });
+    return changed;
+  }
 
   // ---------- rendering ----------
   let activeTab = 'atelier';
@@ -418,7 +452,7 @@
 
   function renderAtelier(){
     // clay
-    $('clay-slots').textContent = `${clayUnit().toFixed(2)} € / unité`;
+    $('clay-slots').textContent = `${clayUnit().toFixed(2)} ₯ / unité`;
     const p = bundlePrice();
     $('clay-card').innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -457,6 +491,22 @@
         <button class="btn" data-action="craft" data-id="${r.id}" ${canCraft?'':'disabled'}>Modeler</button>
       </div>`;
     }).join('');
+
+    // workers
+    const wt = $('worker-title'), wc = $('worker-card');
+    if(!workersOn()){ wt.hidden = true; wc.hidden = true; }
+    else {
+      wt.hidden = false; wc.hidden = false;
+      wc.innerHTML = knownRecipes().map(r => {
+        const n = state.workers[r.id]||0, cost = workerCost(r), afford = state.money >= cost;
+        return `<div class="recipe">
+          <div class="swatch" style="background:${r.color}"></div>
+          <div><div class="name">Ouvrier · ${r.name} ${n>0?`<span class="badge stock">×${n}</span>`:''}</div>
+            <div class="req">${n>0?`${n} tuile${n>1?'s':''}`:'1 tuile'} / ${r.time}s · ${r.clay} argile chacune</div></div>
+          <button class="btn money" data-action="hire" data-id="${r.id}" ${afford?'':'disabled'}>${eur(cost)}</button>
+        </div>`;
+      }).join('');
+    }
   }
 
   function renderOrders(){
@@ -510,6 +560,7 @@
     else if(a==='craft'){ startCraft(el.dataset.id); }
     else if(a==='deliver'){ deliver(parseInt(el.dataset.id,10)); }
     else if(a==='learn'){ learn(el.dataset.id); }
+    else if(a==='hire'){ hireWorker(el.dataset.id); }
     else if(a==='theme'){
       const cur = document.documentElement.getAttribute('data-theme');
       const dark = cur ? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
@@ -524,9 +575,12 @@
   }
 
   // ---------- main loop ----------
+  let lastTick = Date.now();
   function tick(){
     const now = Date.now();
     let changed = false;
+    const dtMs = Math.min(now - lastTick, 8*3600*1000); lastTick = now;
+    if(runWorkers(dtMs)) changed = true;
     // finish crafts
     for(let i=state.crafts.length-1;i>=0;i--){
       if(now >= state.crafts[i].end){
@@ -560,6 +614,7 @@
   if(state.orders.length === 0) seedOrders();
   if(!state.nextOrderAt) state.nextOrderAt = Date.now()+14000;
   renderAll();
+  lastTick = Date.now();
   tick();
 })();
 </script>
