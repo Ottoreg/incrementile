@@ -225,6 +225,8 @@
 (() => {
   "use strict";
 
+  const $ = id => document.getElementById(id);
+
   const RECIPES = [
     {id:'plate',  name:'Tuile plate',           clay:2,  time:3,  value:6,   color:'#c56a3c', tech:null},
     {id:'canal',  name:'Tuile canal',           clay:4,  time:6,  value:16,  color:'#a3472a', tech:'cintrage'},
@@ -407,7 +409,6 @@
   }
 
   // ---------- rendering ----------
-  const $ = id => document.getElementById(id);
   let activeTab = 'atelier';
 
   function renderTop(){
