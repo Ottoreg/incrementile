@@ -11,405 +11,459 @@
   :root{
     --bg:#E7DACB; --bg2:#F0E7DA; --surface:#FBF5EC; --surface-2:#F3E9DB;
     --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545;
-    --clay:#B85C30; --glaze:#1E8A7E; --kiln:#C67E1F; --good:#2f8f5b;
+    --clay:#B85C30; --glaze:#1E8A7E; --kiln:#B7791A; --money:#2f8f5b; --bad:#C0492B;
     --shadow:0 1px 2px rgba(60,35,15,.10), 0 8px 24px rgba(60,35,15,.08);
   }
   @media (prefers-color-scheme: dark){
     :root{
       --bg:#17110E; --bg2:#1E1712; --surface:#241A15; --surface-2:#2C211A;
       --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87;
-      --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --good:#4bbd7e;
+      --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --money:#5ec98a; --bad:#E4795C;
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
     }
   }
   :root[data-theme="light"]{
     --bg:#E7DACB; --bg2:#F0E7DA; --surface:#FBF5EC; --surface-2:#F3E9DB;
     --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545;
-    --clay:#B85C30; --glaze:#1E8A7E; --kiln:#C67E1F; --good:#2f8f5b;
+    --clay:#B85C30; --glaze:#1E8A7E; --kiln:#B7791A; --money:#2f8f5b; --bad:#C0492B;
     --shadow:0 1px 2px rgba(60,35,15,.10), 0 8px 24px rgba(60,35,15,.08);
   }
   :root[data-theme="dark"]{
     --bg:#17110E; --bg2:#1E1712; --surface:#241A15; --surface-2:#2C211A;
     --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87;
-    --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --good:#4bbd7e;
+    --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --money:#5ec98a; --bad:#E4795C;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
   }
 
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{
-    background:
-      radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--kiln) 14%, transparent), transparent 60%),
-      var(--bg);
-    color:var(--text);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    overscroll-behavior:none;
-    touch-action:manipulation;
+    background:radial-gradient(120% 70% at 50% -10%, color-mix(in srgb,var(--kiln) 12%,transparent), transparent 55%), var(--bg);
+    color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;overscroll-behavior:none;touch-action:manipulation;
   }
-  .app{
-    max-width:520px;margin:0 auto;min-height:100dvh;
-    display:flex;flex-direction:column;
-    padding:max(14px,env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
-  }
+  .app{max-width:540px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
 
-  /* ---- header ---- */
-  header{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .brand{display:flex;flex-direction:column;line-height:1}
-  .brand b{
-    font-family:Georgia,"Iowan Old Style","Times New Roman",serif;
-    font-weight:700;font-size:19px;letter-spacing:.02em;
+  /* top resource bar */
+  .topbar{
+    position:sticky;top:0;z-index:10;
+    background:color-mix(in srgb,var(--bg) 86%, transparent);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+    padding:max(10px,env(safe-area-inset-top)) 14px 10px;
+    display:flex;align-items:center;gap:10px;
   }
-  .brand span{font-size:11px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;margin-top:5px}
-  .tools{display:flex;gap:8px}
-  .icon-btn{
-    width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
-    background:var(--surface);color:var(--dim);font-size:16px;cursor:pointer;
-    display:grid;place-items:center;box-shadow:var(--shadow);
-  }
-  .icon-btn:active{transform:scale(.94)}
+  .brand{font-family:Georgia,"Iowan Old Style",serif;font-weight:700;font-size:15px;letter-spacing:.02em;margin-right:auto}
+  .stat{display:flex;flex-direction:column;align-items:flex-end;line-height:1.05;min-width:64px}
+  .stat .v{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:3px}
+  .stat.money .v{color:var(--money)}
+  .stat.clay .v{color:var(--clay)}
+  .mini-btn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--dim);font-size:15px;display:grid;place-items:center;cursor:pointer}
+  .mini-btn:active{transform:scale(.93)}
 
-  /* ---- readout ---- */
-  .readout{
-    text-align:center;margin:22px 0 8px;
-  }
-  .readout .amount{
-    font-size:clamp(38px,13vw,58px);font-weight:800;letter-spacing:-.02em;
-    font-variant-numeric:tabular-nums;line-height:1;
-    color:var(--text);
-  }
-  .readout .unit{
-    display:block;margin-top:8px;font-size:12px;letter-spacing:.22em;
-    text-transform:uppercase;color:var(--clay);font-weight:700;
-  }
-  .readout .rate{
-    margin-top:12px;font-size:14px;color:var(--dim);font-variant-numeric:tabular-nums;
-  }
-  .readout .rate b{color:var(--glaze);font-weight:700}
+  /* panels */
+  main{flex:1;padding:16px 14px calc(84px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:16px}
+  .panel{display:none;flex-direction:column;gap:14px}
+  .panel.active{display:flex}
+  .sec-title{display:flex;align-items:baseline;justify-content:space-between;margin:2px 2px -2px}
+  .sec-title h2{font-family:Georgia,"Iowan Old Style",serif;font-size:15px;margin:0;font-weight:700}
+  .sec-title small{font-size:11px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;font-variant-numeric:tabular-nums}
 
-  /* ---- clay block ---- */
-  .stage{display:grid;place-items:center;padding:14px 0 22px;position:relative}
-  .clay{
-    -webkit-user-select:none;user-select:none;cursor:pointer;position:relative;
-    width:min(56vw,220px);aspect-ratio:1;border-radius:50% 48% 52% 50%/52% 50% 50% 48%;
-    border:none;padding:0;
-    background:
-      radial-gradient(38% 34% at 38% 32%, color-mix(in srgb,#fff 45%, var(--clay)) 0%, transparent 60%),
-      radial-gradient(120% 120% at 62% 70%, color-mix(in srgb,#000 34%, var(--clay)) 0%, transparent 55%),
-      var(--clay);
-    box-shadow:
-      inset 0 -14px 26px color-mix(in srgb,#000 40%, transparent),
-      inset 0 10px 20px color-mix(in srgb,#fff 22%, transparent),
-      0 18px 40px color-mix(in srgb,#000 34%, transparent);
-    transition:transform .09s ease;
-  }
-  .clay::after{
-    content:"";position:absolute;inset:16% 20% auto 20%;height:26%;
-    border-radius:50%;background:color-mix(in srgb,#fff 26%, transparent);
-    filter:blur(6px);opacity:.7;pointer-events:none;
-  }
-  .clay:active{transform:scale(.95)}
-  .clay-hint{margin-top:2px;font-size:12px;color:var(--dim);letter-spacing:.04em}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);padding:13px}
 
-  .float{
-    position:absolute;pointer-events:none;font-weight:800;font-size:20px;color:var(--kiln);
-    text-shadow:0 1px 2px rgba(0,0,0,.35);font-variant-numeric:tabular-nums;
-    animation:floatUp .9s ease-out forwards;z-index:5;
-  }
-  @keyframes floatUp{
-    from{opacity:1;transform:translate(-50%,-50%)}
-    to{opacity:0;transform:translate(-50%,-160%)}
-  }
+  .swatch{width:42px;height:42px;border-radius:11px;flex:0 0 auto;position:relative;box-shadow:inset 0 -5px 10px rgba(0,0,0,.28),inset 0 4px 8px rgba(255,255,255,.26)}
+  .swatch::before{content:"";position:absolute;inset:5px 7px auto 7px;height:34%;border-radius:5px;background:linear-gradient(rgba(255,255,255,.4),transparent)}
 
-  /* ---- shop ---- */
-  .shop-head{
-    display:flex;align-items:baseline;justify-content:space-between;
-    margin:4px 2px 10px;
-  }
-  .shop-head h2{
-    font-family:Georgia,"Iowan Old Style",serif;font-size:16px;margin:0;font-weight:700;
-  }
-  .shop-head small{font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
-  .shop{display:flex;flex-direction:column;gap:10px;padding-bottom:8px}
+  /* buttons */
+  .btn{border:none;border-radius:11px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;color:#fff;background:var(--kiln);white-space:nowrap}
+  .btn:active{transform:scale(.96)}
+  .btn.ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}
+  .btn.money{background:var(--money)}
+  .btn:disabled{opacity:.45;cursor:default;transform:none}
 
-  .gen{
-    display:grid;grid-template-columns:46px 1fr auto;gap:12px;align-items:center;
-    background:var(--surface);border:1px solid var(--line);border-radius:15px;
-    padding:11px 13px;text-align:left;cursor:pointer;color:inherit;
-    box-shadow:var(--shadow);transition:transform .08s ease,border-color .15s ease,opacity .15s;
-    position:relative;overflow:hidden;
-  }
-  .gen[hidden]{display:none}
-  .gen:active{transform:scale(.985)}
-  .gen.locked{opacity:.55;cursor:default}
-  .gen.locked:active{transform:none}
-  .gen .tile{
-    width:46px;height:46px;border-radius:12px;position:relative;
-    box-shadow:inset 0 -6px 12px rgba(0,0,0,.28), inset 0 5px 9px rgba(255,255,255,.28);
-  }
-  .gen .tile::before{
-    content:"";position:absolute;inset:6px 8px auto 8px;height:34%;border-radius:6px;
-    background:linear-gradient(rgba(255,255,255,.4),transparent);
-  }
-  .gen .info{min-width:0}
-  .gen .name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
-  .gen .count{
-    font-size:11px;font-weight:800;color:var(--dim);
-    background:var(--surface-2);border:1px solid var(--line);
-    border-radius:20px;padding:1px 8px;font-variant-numeric:tabular-nums;
-  }
-  .gen .flavor{font-size:11.5px;color:var(--dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .gen .prod{font-size:11.5px;color:var(--glaze);margin-top:4px;font-weight:600;font-variant-numeric:tabular-nums}
-  .gen .buy{text-align:right;white-space:nowrap}
-  .gen .cost{
-    font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;
-    color:var(--kiln);
-  }
-  .gen.locked .cost{color:var(--dim)}
-  .gen .costlbl{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
-  .gen.affordable{border-color:color-mix(in srgb,var(--kiln) 55%, var(--line))}
-  .gen.affordable::after{
-    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--kiln);
-  }
+  /* recipe row */
+  .recipe{display:grid;grid-template-columns:42px 1fr auto;gap:12px;align-items:center}
+  .recipe + .recipe{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .recipe .name{font-weight:700;font-size:14.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .recipe .req{font-size:12px;color:var(--dim);margin-top:3px;font-variant-numeric:tabular-nums}
+  .badge{font-size:10.5px;font-weight:800;color:var(--dim);background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-variant-numeric:tabular-nums}
+  .badge.stock{color:var(--glaze)}
 
-  footer{margin-top:auto;padding-top:14px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:.04em}
+  /* craft progress */
+  .craft{display:grid;grid-template-columns:42px 1fr;gap:12px;align-items:center}
+  .craft + .craft{margin-top:10px}
+  .bar{height:8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;margin-top:7px}
+  .fill{height:100%;background:linear-gradient(90deg,var(--clay),var(--kiln));border-radius:6px;transition:width .12s linear}
+  .craft .cname{font-weight:700;font-size:14px}
+  .craft .ctime{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .slot-empty{color:var(--dim);font-size:13px;text-align:center;padding:6px 0}
 
-  /* ---- toast ---- */
-  .toast{
-    position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
-    background:var(--surface);border:1px solid var(--line);color:var(--text);
-    padding:11px 16px;border-radius:13px;box-shadow:var(--shadow);font-size:13px;
-    opacity:0;transition:opacity .3s,transform .3s;z-index:20;max-width:90vw;text-align:center;
+  /* orders */
+  .order .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .order .client{font-weight:700;font-size:14.5px}
+  .order .want{font-size:13px;color:var(--dim);margin-top:4px;display:flex;align-items:center;gap:8px}
+  .order .reward{font-weight:800;color:var(--money);font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .order .actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}
+  .order .miss{font-size:12px;color:var(--bad)}
+  .mini-swatch{width:16px;height:16px;border-radius:4px;display:inline-block;vertical-align:middle}
+
+  /* methods */
+  .method{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+  .method .name{font-weight:700;font-size:14.5px}
+  .method .desc{font-size:12.5px;color:var(--dim);margin-top:3px}
+  .method.learned{opacity:.72}
+  .method .done{color:var(--money);font-weight:800;font-size:13px;white-space:nowrap}
+  .tag{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:6px;margin-left:7px;vertical-align:middle}
+  .tag.recipe{color:var(--glaze);background:color-mix(in srgb,var(--glaze) 16%,transparent)}
+  .tag.upg{color:var(--kiln);background:color-mix(in srgb,var(--kiln) 16%,transparent)}
+
+  /* bottom tabbar */
+  .tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    max-width:540px;margin:0 auto;
+    background:color-mix(in srgb,var(--bg) 88%, transparent);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);
+    display:grid;grid-template-columns:repeat(3,1fr);
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
   }
+  .tab{background:none;border:none;color:var(--dim);font-family:inherit;font-size:11px;font-weight:700;
+    display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px 0;border-radius:10px}
+  .tab .ic{font-size:19px;line-height:1}
+  .tab.active{color:var(--kiln)}
+  .tab .dot{position:absolute;transform:translate(14px,-4px);width:8px;height:8px;border-radius:50%;background:var(--bad);display:none}
+  .tab.has-orders .dot{display:block}
+
+  .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(14px);
+    background:var(--surface);border:1px solid var(--line);color:var(--text);padding:10px 15px;border-radius:12px;
+    box-shadow:var(--shadow);font-size:13px;opacity:0;transition:opacity .3s,transform .3s;z-index:30;max-width:90vw;text-align:center}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .toast b{color:var(--kiln)}
+  .toast b{color:var(--money)}
+  .empty{color:var(--dim);font-size:13px;text-align:center;padding:22px 8px}
 
-  @media (prefers-reduced-motion: reduce){
-    *{animation-duration:.001ms !important;transition:none !important}
-  }
+  @media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;transition:none !important}}
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="brand">
-      <b>Incrementile</b>
-      <span>L'atelier du céramiste</span>
-    </div>
-    <div class="tools">
-      <button class="icon-btn" id="theme" title="Thème">◑</button>
-      <button class="icon-btn" id="reset" title="Recommencer">↺</button>
-    </div>
-  </header>
-
-  <div class="readout">
-    <div class="amount" id="argile">0</div>
-    <span class="unit">grammes d'argile</span>
-    <div class="rate">Production : <b id="rate">0</b> /s</div>
+<div class="app" id="root">
+  <div class="topbar">
+    <div class="brand">Incrementile</div>
+    <div class="stat money"><div class="v" id="v-money">50 €</div><div class="l">Trésorerie</div></div>
+    <div class="stat clay"><div class="v" id="v-clay">0</div><div class="l">Argile</div></div>
+    <button class="mini-btn" data-action="theme" title="Thème">◑</button>
   </div>
 
-  <div class="stage">
-    <button class="clay" id="clay" aria-label="Récolter de l'argile"></button>
-  </div>
-  <div class="clay-hint" style="text-align:center;margin:-14px 0 20px">Tape le bloc pour extraire l'argile</div>
+  <main>
+    <!-- ATELIER -->
+    <section class="panel active" id="panel-atelier">
+      <div class="sec-title"><h2>Matière première</h2><small id="clay-slots"></small></div>
+      <div class="card" id="clay-card"></div>
 
-  <div class="shop-head">
-    <h2>Ateliers &amp; tuiles</h2>
-    <small id="totalowned">0 acquis</small>
-  </div>
-  <div class="shop" id="shop"></div>
+      <div class="sec-title"><h2>Fabrication</h2><small id="craft-count"></small></div>
+      <div class="card" id="craft-card"></div>
 
-  <footer>Sauvegarde automatique · <span id="version">v0.1</span></footer>
+      <div class="sec-title"><h2>Recettes</h2><small>argile · cuisson</small></div>
+      <div class="card" id="recipe-card"></div>
+    </section>
+
+    <!-- COMMANDES -->
+    <section class="panel" id="panel-commandes">
+      <div class="sec-title"><h2>Commandes clients</h2><small id="order-count"></small></div>
+      <div id="orders-wrap" style="display:flex;flex-direction:column;gap:12px"></div>
+    </section>
+
+    <!-- MÉTHODES -->
+    <section class="panel" id="panel-methodes">
+      <div class="sec-title"><h2>Apprendre de nouvelles méthodes</h2></div>
+      <div id="methods-wrap" style="display:flex;flex-direction:column;gap:12px"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab active" data-action="tab" data-tab="atelier"><span class="ic">🏺</span>Atelier</button>
+    <button class="tab" data-action="tab" data-tab="commandes"><span class="ic" style="position:relative">📋<span class="dot"></span></span>Commandes</button>
+    <button class="tab" data-action="tab" data-tab="methodes"><span class="ic">📖</span>Méthodes</button>
+  </nav>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
 (() => {
   "use strict";
 
-  const GENS = [
-    {id:'apprenti', name:'Apprenti potier',     flavor:"Malaxe l'argile à la main",      base:15,       prod:0.1,  color:'#8a5a3c'},
-    {id:'plate',    name:'Tuile plate',          flavor:"La tuile de base, cuite au four", base:120,      prod:1,    color:'#c56a3c'},
-    {id:'canal',    name:'Tuile canal',          flavor:"Courbée à la romaine",            base:1300,     prod:8,    color:'#a3472a'},
-    {id:'vernis',   name:'Carreau vernissé',     flavor:"Recouvert d'un émail brillant",   base:14000,    prod:47,   color:'#2fa69a'},
-    {id:'zellige',  name:'Zellige',              flavor:"Mosaïque taillée à la main",      base:160000,   prod:260,  color:'#2f6fb0'},
-    {id:'or',       name:"Tuile émaillée d'or",  flavor:"Feuille d'or à la cuisson",       base:2e6,      prod:1400, color:'#e0a53c'},
-    {id:'four',     name:'Four à bois',          flavor:"Cuisson en continu, jour et nuit",base:2.5e7,    prod:7800, color:'#d64f2a'},
+  const RECIPES = [
+    {id:'plate',  name:'Tuile plate',           clay:2,  time:3,  value:6,   color:'#c56a3c', tech:null},
+    {id:'canal',  name:'Tuile canal',           clay:4,  time:6,  value:16,  color:'#a3472a', tech:'cintrage'},
+    {id:'vernis', name:'Carreau vernissé',      clay:7,  time:10, value:45,  color:'#2fa69a', tech:'emaillage'},
+    {id:'zellige',name:'Zellige',               clay:12, time:16, value:130, color:'#2f6fb0', tech:'zellige'},
+    {id:'or',     name:"Tuile émaillée d'or",   clay:20, time:24, value:380, color:'#e0a53c', tech:'dorure'},
   ];
-  const GROWTH = 1.15;
-  const SAVE_KEY = 'incrementile.save.v1';
+  const R = id => RECIPES.find(r => r.id === id);
 
-  let state = { argile:0, owned:{}, tapTotal:0, lastSave:Date.now() };
-  GENS.forEach(g => state.owned[g.id] = 0);
+  const METHODS = [
+    {id:'cintrage',   name:'Cintrage',              desc:"Débloque la Tuile canal",           cost:60,    kind:'recipe'},
+    {id:'etabli2',    name:'Deuxième établi',       desc:"+1 fabrication simultanée",         cost:150,   kind:'upg'},
+    {id:'fournisseur',name:"Fournisseur d'argile",  desc:"Argile 25 % moins chère",           cost:220,   kind:'upg'},
+    {id:'emaillage',  name:'Émaillage',             desc:"Débloque le Carreau vernissé",      cost:450,   kind:'recipe'},
+    {id:'four',       name:'Four rapide',           desc:"Cuisson 25 % plus rapide",          cost:650,   kind:'upg'},
+    {id:'carnet',     name:'Carnet de commandes',   desc:"+2 commandes en attente",           cost:1000,  kind:'upg'},
+    {id:'etabli3',    name:'Troisième établi',      desc:"+1 fabrication simultanée",         cost:1600,  kind:'upg'},
+    {id:'zellige',    name:'Taille du zellige',     desc:"Débloque le Zellige",               cost:3200,  kind:'recipe'},
+    {id:'reputation', name:"Réputation d'artisan",  desc:"Commandes payées +25 %",            cost:5500,  kind:'upg'},
+    {id:'dorure',     name:'Dorure à la feuille',   desc:"Débloque la Tuile émaillée d'or",   cost:17000, kind:'recipe'},
+  ];
 
-  // ---------- number formatting ----------
-  const SUFFIX = ['','K','M','Md','B','T','Qa','Qi','Sx','Sp'];
+  const CLIENTS = ["Mme Renaud","Atelier Belleville","M. Costa","La Villa Rose","Chantier du Vieux-Port",
+    "Toiture Lefranc","Le Riad Nour","Mairie de Céret","M. et Mme Aubert","Restaurant L'Argile",
+    "Domaine des Oliviers","Cabinet Vidal","La Maison Bleue","Hôtel du Cloître"];
+
+  const SAVE_KEY = 'incrementile.save.v2';
+  const CLAY_BUNDLE = 10, CLAY_UNIT = 0.8;
+
+  let state = {
+    money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
+    nextOrderAt:0, lastSave:Date.now()
+  };
+
+  // ---------- derived modifiers ----------
+  const has = id => !!state.learned[id];
+  const craftSlots  = () => 1 + (has('etabli2')?1:0) + (has('etabli3')?1:0);
+  const orderSlots  = () => 3 + (has('carnet')?2:0);
+  const clayUnit    = () => CLAY_UNIT * (has('fournisseur')?0.75:1);
+  const bundlePrice = () => Math.ceil(CLAY_BUNDLE * clayUnit());
+  const speedMult   = () => (has('four')?0.75:1);
+  const rewardMult  = () => (has('reputation')?1.25:1);
+  const knowsRecipe = r => r.tech === null || has(r.tech);
+  const knownRecipes = () => RECIPES.filter(knowsRecipe);
+
+  // ---------- format ----------
+  const SUF = ['','K','M','Md','B','T'];
   function fmt(n){
-    if(!isFinite(n)) return '∞';
-    if(n < 1000) return (n>=100||Number.isInteger(n)) ? Math.floor(n).toString()
-                                                     : (Math.round(n*10)/10).toString();
-    let t = Math.floor(Math.log10(n)/3);
-    t = Math.min(t, SUFFIX.length-1);
-    const m = n/Math.pow(1000,t);
-    const dec = m<10 ? 2 : m<100 ? 1 : 0;
-    return m.toFixed(dec) + SUFFIX[t];
+    n = Math.floor(n);
+    if(n < 1000) return n.toString();
+    let t = Math.min(Math.floor(Math.log10(n)/3), SUF.length-1);
+    const m = n/Math.pow(1000,t), d = m<10?2:m<100?1:0;
+    return m.toFixed(d) + SUF[t];
   }
-
-  const costOf = g => Math.floor(g.base * Math.pow(GROWTH, state.owned[g.id]));
-  const perSec = () => GENS.reduce((s,g)=> s + g.prod*state.owned[g.id], 0);
-  const tapGain = () => 1 + perSec()*0.02;
+  const eur = n => fmt(n) + ' €';
 
   // ---------- persistence ----------
-  function save(){
-    state.lastSave = Date.now();
-    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){}
-  }
+  function save(){ state.lastSave = Date.now(); try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){} }
   function load(){
     try{
-      const raw = localStorage.getItem(SAVE_KEY);
-      if(!raw) return;
-      const s = JSON.parse(raw);
-      state.argile = s.argile||0;
-      state.tapTotal = s.tapTotal||0;
-      state.lastSave = s.lastSave||Date.now();
-      GENS.forEach(g => state.owned[g.id] = (s.owned && s.owned[g.id])||0);
-    }catch(e){}
+      const s = JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); if(!s) return false;
+      Object.assign(state, s);
+      state.learned = s.learned||{}; state.inventory = s.inventory||{};
+      state.crafts = s.crafts||[]; state.orders = s.orders||[];
+      return true;
+    }catch(e){ return false; }
   }
-  function offlineEarnings(){
-    const dt = Math.min((Date.now()-state.lastSave)/1000, 60*60*8); // cap 8h
-    const gain = perSec()*dt;
-    if(gain > 1 && dt > 5){
-      state.argile += gain;
-      toast(`De retour à l'atelier ! <b>+${fmt(gain)}</b> g d'argile pendant ton absence`);
-    }
+  function catchUp(){
+    // resolve crafts finished while away
+    const now = Date.now();
+    state.crafts = state.crafts.filter(c => {
+      if(now >= c.end){ state.inventory[c.tileId] = (state.inventory[c.tileId]||0)+1; return false; }
+      return true;
+    });
   }
 
-  // ---------- DOM ----------
+  // ---------- orders ----------
+  function makeOrder(){
+    const pool = knownRecipes();
+    const r = pool[Math.floor(Math.random()*pool.length)];
+    const qty = 2 + Math.floor(Math.random()*5);
+    const reward = Math.round(r.value * qty * (1.9 + Math.random()*0.7) * rewardMult());
+    return { id:state.orderSeq++, tileId:r.id, qty, reward, client:CLIENTS[Math.floor(Math.random()*CLIENTS.length)] };
+  }
+  function seedOrders(){ for(let i=0;i<3;i++) state.orders.push(makeOrder()); }
+
+  // ---------- actions ----------
+  function buyClay(){
+    const p = bundlePrice();
+    if(state.money < p) return toast("Pas assez d'argent pour l'argile");
+    state.money -= p; state.clay += CLAY_BUNDLE; save(); renderAll();
+  }
+  function startCraft(id){
+    const r = R(id);
+    if(!knowsRecipe(r)) return;
+    if(state.crafts.length >= craftSlots()) return toast("Tous tes établis sont occupés");
+    if(state.clay < r.clay) return toast("Pas assez d'argile");
+    state.clay -= r.clay;
+    const now = Date.now();
+    state.crafts.push({ tileId:id, start:now, end:now + r.time*1000*speedMult() });
+    save(); renderAll();
+  }
+  function deliver(oid){
+    const o = state.orders.find(x => x.id === oid); if(!o) return;
+    if((state.inventory[o.tileId]||0) < o.qty) return;
+    state.inventory[o.tileId] -= o.qty;
+    state.money += o.reward;
+    state.orders = state.orders.filter(x => x.id !== oid);
+    state.nextOrderAt = Math.min(state.nextOrderAt, Date.now()+6000);
+    toast(`Commande livrée à ${o.client} · <b>+${eur(o.reward)}</b>`);
+    save(); renderAll();
+  }
+  function learn(id){
+    const m = METHODS.find(x => x.id === id); if(!m || has(id)) return;
+    if(state.money < m.cost) return toast("Pas encore les moyens d'apprendre ça");
+    state.money -= m.cost; state.learned[id] = true;
+    toast(`Nouvelle méthode : <b>${m.name}</b>`);
+    save(); renderAll();
+  }
+
+  // ---------- rendering ----------
   const $ = id => document.getElementById(id);
-  const els = { argile:$('argile'), rate:$('rate'), shop:$('shop'), stage:document.querySelector('.stage'),
-                totalowned:$('totalowned') };
-  const rows = {};
+  let activeTab = 'atelier';
 
-  function buildShop(){
-    GENS.forEach(g => {
-      const el = document.createElement('button');
-      el.className = 'gen';
-      el.innerHTML = `
-        <div class="tile" style="background:${g.color}"></div>
-        <div class="info">
-          <div class="name">${g.name} <span class="count">0</span></div>
-          <div class="flavor">${g.flavor}</div>
-          <div class="prod">+${fmt(g.prod)} /s chacune</div>
+  function renderTop(){
+    $('v-money').textContent = eur(state.money);
+    $('v-clay').textContent = fmt(state.clay);
+  }
+
+  function renderAtelier(){
+    // clay
+    $('clay-slots').textContent = `${clayUnit().toFixed(2)} € / unité`;
+    const p = bundlePrice();
+    $('clay-card').innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-weight:700">Acheter de l'argile</div>
+          <div style="font-size:12.5px;color:var(--dim);margin-top:3px">Lot de ${CLAY_BUNDLE} unités</div>
         </div>
-        <div class="buy">
-          <div class="cost">${fmt(costOf(g))}</div>
-          <div class="costlbl">argile</div>
+        <button class="btn money" data-action="buy-clay" ${state.money<p?'disabled':''}>+${CLAY_BUNDLE} · ${eur(p)}</button>
+      </div>`;
+
+    // crafts
+    $('craft-count').textContent = `${state.crafts.length} / ${craftSlots()} établis`;
+    const now = Date.now();
+    if(state.crafts.length === 0){
+      $('craft-card').innerHTML = `<div class="slot-empty">Aucune tuile en cuisson — lance une recette ci-dessous.</div>`;
+    } else {
+      $('craft-card').innerHTML = state.crafts.map(c => {
+        const r = R(c.tileId), pct = Math.min(100, (now-c.start)/(c.end-c.start)*100);
+        const left = Math.max(0, Math.ceil((c.end-now)/1000));
+        return `<div class="craft">
+          <div class="swatch" style="background:${r.color}"></div>
+          <div><div style="display:flex;justify-content:space-between"><span class="cname">${r.name}</span><span class="ctime">${left}s</span></div>
+          <div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>
         </div>`;
-      el.addEventListener('click', () => buy(g));
-      els.shop.appendChild(el);
-      rows[g.id] = {
-        el, count:el.querySelector('.count'), cost:el.querySelector('.cost')
-      };
-    });
+      }).join('');
+    }
+
+    // recipes
+    $('recipe-card').innerHTML = knownRecipes().map(r => {
+      const stock = state.inventory[r.id]||0;
+      const canCraft = state.crafts.length < craftSlots() && state.clay >= r.clay;
+      return `<div class="recipe">
+        <div class="swatch" style="background:${r.color}"></div>
+        <div><div class="name">${r.name} ${stock>0?`<span class="badge stock">${stock} en stock</span>`:''}</div>
+          <div class="req">${r.clay} argile · ${r.time}s de cuisson</div></div>
+        <button class="btn" data-action="craft" data-id="${r.id}" ${canCraft?'':'disabled'}>Fabriquer</button>
+      </div>`;
+    }).join('');
   }
 
-  function buy(g){
-    const cost = costOf(g);
-    if(state.argile < cost) return;
-    state.argile -= cost;
-    state.owned[g.id]++;
-    save();
-    renderShop(true);
+  function renderOrders(){
+    $('order-count').textContent = `${state.orders.length} / ${orderSlots()}`;
+    const wrap = $('orders-wrap');
+    if(state.orders.length === 0){ wrap.innerHTML = `<div class="empty">Pas de commande pour l'instant. De nouveaux clients arrivent bientôt…</div>`; return; }
+    wrap.innerHTML = state.orders.map(o => {
+      const r = R(o.tileId), stock = state.inventory[o.tileId]||0, ok = stock >= o.qty, miss = o.qty - stock;
+      return `<div class="card order">
+        <div class="top">
+          <div><div class="client">${o.client}</div>
+            <div class="want"><span class="mini-swatch" style="background:${r.color}"></span>${o.qty} × ${r.name}</div></div>
+          <div class="reward">${eur(o.reward)}</div>
+        </div>
+        <div class="actions">
+          <span class="${ok?'':'miss'}">${ok?`En stock : ${stock}`:`Il te manque ${miss} tuile${miss>1?'s':''}`}</span>
+          <button class="btn money" data-action="deliver" data-id="${o.id}" ${ok?'':'disabled'}>Livrer</button>
+        </div>
+      </div>`;
+    }).join('');
   }
 
-  let lastUnlockTier = 0;
-  function renderShop(force){
-    let total = 0, firstLocked = true;
-    GENS.forEach((g,i) => {
-      const owned = state.owned[g.id];
-      total += owned;
-      const cost = costOf(g);
-      const r = rows[g.id];
-      // reveal rule: show a generator once the previous one is owned, or it's already owned
-      const prevOwned = i===0 ? 1 : state.owned[GENS[i-1].id];
-      const visible = owned>0 || prevOwned>0;
-      r.el.hidden = !visible;
-      if(!visible) return;
-      r.count.textContent = owned;
-      r.cost.textContent = fmt(cost);
-      const afford = state.argile >= cost;
-      r.el.classList.toggle('affordable', afford);
-      r.el.classList.toggle('locked', !afford);
-    });
-    els.totalowned.textContent = total + (total>1?' tuiles posées':' tuile posée');
+  function renderMethods(){
+    $('methods-wrap').innerHTML = METHODS.map(m => {
+      const learned = has(m.id), afford = state.money >= m.cost;
+      return `<div class="card method ${learned?'learned':''}">
+        <div><div class="name">${m.name}<span class="tag ${m.kind}">${m.kind==='recipe'?'Recette':'Amélioration'}</span></div>
+          <div class="desc">${m.desc}</div></div>
+        ${learned ? `<div class="done">Appris ✓</div>`
+                  : `<button class="btn" data-action="learn" data-id="${m.id}" ${afford?'':'disabled'}>${eur(m.cost)}</button>`}
+      </div>`;
+    }).join('');
   }
 
-  // ---------- tap ----------
-  function spawnFloat(x, y, txt){
-    const f = document.createElement('div');
-    f.className = 'float';
-    f.textContent = txt;
-    const rect = els.stage.getBoundingClientRect();
-    f.style.left = (x - rect.left) + 'px';
-    f.style.top  = (y - rect.top) + 'px';
-    els.stage.appendChild(f);
-    setTimeout(() => f.remove(), 900);
-  }
-  function doTap(x, y){
-    const g = tapGain();
-    state.argile += g;
-    state.tapTotal += g;
-    spawnFloat(x, y, '+' + fmt(g));
-  }
-  $('clay').addEventListener('pointerdown', e => {
-    e.preventDefault();
-    doTap(e.clientX, e.clientY);
-  });
-
-  // ---------- loop ----------
-  let last = performance.now(), shopAcc = 0;
-  function loop(now){
-    const dt = Math.min((now-last)/1000, 0.25); last = now;
-    state.argile += perSec()*dt;
-    els.argile.textContent = fmt(Math.floor(state.argile));
-    els.rate.textContent = fmt(perSec());
-    shopAcc += dt;
-    if(shopAcc > 0.12){ renderShop(); shopAcc = 0; }
-    requestAnimationFrame(loop);
+  function renderAll(){
+    renderTop();
+    if(activeTab==='atelier') renderAtelier();
+    else if(activeTab==='commandes') renderOrders();
+    else renderMethods();
+    // order notification dot
+    const anyReady = state.orders.some(o => (state.inventory[o.tileId]||0) >= o.qty);
+    document.querySelector('.tab[data-tab="commandes"]').classList.toggle('has-orders', anyReady);
   }
 
-  // ---------- controls ----------
-  $('theme').addEventListener('click', () => {
-    const cur = document.documentElement.getAttribute('data-theme');
-    const dark = cur ? cur==='dark'
-      : matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
-  });
-  $('reset').addEventListener('click', () => {
-    if(confirm("Casser toutes les tuiles et recommencer l'atelier à zéro ?")){
-      localStorage.removeItem(SAVE_KEY);
-      location.reload();
+  // ---------- event delegation ----------
+  $('root').addEventListener('click', e => {
+    const el = e.target.closest('[data-action]'); if(!el) return;
+    const a = el.dataset.action;
+    if(a==='tab'){ switchTab(el.dataset.tab); }
+    else if(a==='buy-clay'){ buyClay(); }
+    else if(a==='craft'){ startCraft(el.dataset.id); }
+    else if(a==='deliver'){ deliver(parseInt(el.dataset.id,10)); }
+    else if(a==='learn'){ learn(el.dataset.id); }
+    else if(a==='theme'){
+      const cur = document.documentElement.getAttribute('data-theme');
+      const dark = cur ? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', dark?'light':'dark');
     }
   });
+  function switchTab(t){
+    activeTab = t;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab===t));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id==='panel-'+t));
+    renderAll();
+  }
+
+  // ---------- main loop ----------
+  function tick(){
+    const now = Date.now();
+    let changed = false;
+    // finish crafts
+    for(let i=state.crafts.length-1;i>=0;i--){
+      if(now >= state.crafts[i].end){
+        const c = state.crafts.splice(i,1)[0];
+        state.inventory[c.tileId] = (state.inventory[c.tileId]||0)+1;
+        changed = true;
+      }
+    }
+    // generate orders
+    if(state.orders.length < orderSlots() && now >= state.nextOrderAt){
+      state.orders.push(makeOrder());
+      state.nextOrderAt = now + 14000;
+      changed = true;
+    } else if(state.orders.length >= orderSlots()){
+      state.nextOrderAt = now + 14000;
+    }
+    if(changed) save();
+    renderAll();
+    requestAnimationFrame(() => setTimeout(tick, 120));
+  }
 
   let toastTimer;
-  function toast(html){
-    const t = $('toast');
-    t.innerHTML = html; t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 4200);
-  }
+  function toast(html){ const t=$('toast'); t.innerHTML=html; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),3600); }
 
   document.addEventListener('visibilitychange', () => { if(document.hidden) save(); });
-  setInterval(save, 10000);
+  window.addEventListener('pagehide', save);
 
   // ---------- boot ----------
-  load();
-  offlineEarnings();
-  buildShop();
-  renderShop(true);
-  requestAnimationFrame(loop);
+  if(!load()){ seedOrders(); }
+  catchUp();
+  if(state.orders.length === 0) seedOrders();
+  if(!state.nextOrderAt) state.nextOrderAt = Date.now()+14000;
+  renderAll();
+  tick();
 })();
 </script>
 </body>
