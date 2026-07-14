@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#17110E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Incrementile — l'atelier du céramiste</title>
+<style>
+  :root{
+    --bg:#E7DACB; --bg2:#F0E7DA; --surface:#FBF5EC; --surface-2:#F3E9DB;
+    --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545;
+    --clay:#B85C30; --glaze:#1E8A7E; --kiln:#C67E1F; --good:#2f8f5b;
+    --shadow:0 1px 2px rgba(60,35,15,.10), 0 8px 24px rgba(60,35,15,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#17110E; --bg2:#1E1712; --surface:#241A15; --surface-2:#2C211A;
+      --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87;
+      --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --good:#4bbd7e;
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#E7DACB; --bg2:#F0E7DA; --surface:#FBF5EC; --surface-2:#F3E9DB;
+    --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545;
+    --clay:#B85C30; --glaze:#1E8A7E; --kiln:#C67E1F; --good:#2f8f5b;
+    --shadow:0 1px 2px rgba(60,35,15,.10), 0 8px 24px rgba(60,35,15,.08);
+  }
+  :root[data-theme="dark"]{
+    --bg:#17110E; --bg2:#1E1712; --surface:#241A15; --surface-2:#2C211A;
+    --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87;
+    --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --good:#4bbd7e;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--kiln) 14%, transparent), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior:none;
+    touch-action:manipulation;
+  }
+  .app{
+    max-width:520px;margin:0 auto;min-height:100dvh;
+    display:flex;flex-direction:column;
+    padding:max(14px,env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
+  }
+
+  /* ---- header ---- */
+  header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .brand{display:flex;flex-direction:column;line-height:1}
+  .brand b{
+    font-family:Georgia,"Iowan Old Style","Times New Roman",serif;
+    font-weight:700;font-size:19px;letter-spacing:.02em;
+  }
+  .brand span{font-size:11px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;margin-top:5px}
+  .tools{display:flex;gap:8px}
+  .icon-btn{
+    width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+    background:var(--surface);color:var(--dim);font-size:16px;cursor:pointer;
+    display:grid;place-items:center;box-shadow:var(--shadow);
+  }
+  .icon-btn:active{transform:scale(.94)}
+
+  /* ---- readout ---- */
+  .readout{
+    text-align:center;margin:22px 0 8px;
+  }
+  .readout .amount{
+    font-size:clamp(38px,13vw,58px);font-weight:800;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;line-height:1;
+    color:var(--text);
+  }
+  .readout .unit{
+    display:block;margin-top:8px;font-size:12px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--clay);font-weight:700;
+  }
+  .readout .rate{
+    margin-top:12px;font-size:14px;color:var(--dim);font-variant-numeric:tabular-nums;
+  }
+  .readout .rate b{color:var(--glaze);font-weight:700}
+
+  /* ---- clay block ---- */
+  .stage{display:grid;place-items:center;padding:14px 0 22px;position:relative}
+  .clay{
+    -webkit-user-select:none;user-select:none;cursor:pointer;position:relative;
+    width:min(56vw,220px);aspect-ratio:1;border-radius:50% 48% 52% 50%/52% 50% 50% 48%;
+    border:none;padding:0;
+    background:
+      radial-gradient(38% 34% at 38% 32%, color-mix(in srgb,#fff 45%, var(--clay)) 0%, transparent 60%),
+      radial-gradient(120% 120% at 62% 70%, color-mix(in srgb,#000 34%, var(--clay)) 0%, transparent 55%),
+      var(--clay);
+    box-shadow:
+      inset 0 -14px 26px color-mix(in srgb,#000 40%, transparent),
+      inset 0 10px 20px color-mix(in srgb,#fff 22%, transparent),
+      0 18px 40px color-mix(in srgb,#000 34%, transparent);
+    transition:transform .09s ease;
+  }
+  .clay::after{
+    content:"";position:absolute;inset:16% 20% auto 20%;height:26%;
+    border-radius:50%;background:color-mix(in srgb,#fff 26%, transparent);
+    filter:blur(6px);opacity:.7;pointer-events:none;
+  }
+  .clay:active{transform:scale(.95)}
+  .clay-hint{margin-top:2px;font-size:12px;color:var(--dim);letter-spacing:.04em}
+
+  .float{
+    position:absolute;pointer-events:none;font-weight:800;font-size:20px;color:var(--kiln);
+    text-shadow:0 1px 2px rgba(0,0,0,.35);font-variant-numeric:tabular-nums;
+    animation:floatUp .9s ease-out forwards;z-index:5;
+  }
+  @keyframes floatUp{
+    from{opacity:1;transform:translate(-50%,-50%)}
+    to{opacity:0;transform:translate(-50%,-160%)}
+  }
+
+  /* ---- shop ---- */
+  .shop-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin:4px 2px 10px;
+  }
+  .shop-head h2{
+    font-family:Georgia,"Iowan Old Style",serif;font-size:16px;margin:0;font-weight:700;
+  }
+  .shop-head small{font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+  .shop{display:flex;flex-direction:column;gap:10px;padding-bottom:8px}
+
+  .gen{
+    display:grid;grid-template-columns:46px 1fr auto;gap:12px;align-items:center;
+    background:var(--surface);border:1px solid var(--line);border-radius:15px;
+    padding:11px 13px;text-align:left;cursor:pointer;color:inherit;
+    box-shadow:var(--shadow);transition:transform .08s ease,border-color .15s ease,opacity .15s;
+    position:relative;overflow:hidden;
+  }
+  .gen[hidden]{display:none}
+  .gen:active{transform:scale(.985)}
+  .gen.locked{opacity:.55;cursor:default}
+  .gen.locked:active{transform:none}
+  .gen .tile{
+    width:46px;height:46px;border-radius:12px;position:relative;
+    box-shadow:inset 0 -6px 12px rgba(0,0,0,.28), inset 0 5px 9px rgba(255,255,255,.28);
+  }
+  .gen .tile::before{
+    content:"";position:absolute;inset:6px 8px auto 8px;height:34%;border-radius:6px;
+    background:linear-gradient(rgba(255,255,255,.4),transparent);
+  }
+  .gen .info{min-width:0}
+  .gen .name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+  .gen .count{
+    font-size:11px;font-weight:800;color:var(--dim);
+    background:var(--surface-2);border:1px solid var(--line);
+    border-radius:20px;padding:1px 8px;font-variant-numeric:tabular-nums;
+  }
+  .gen .flavor{font-size:11.5px;color:var(--dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gen .prod{font-size:11.5px;color:var(--glaze);margin-top:4px;font-weight:600;font-variant-numeric:tabular-nums}
+  .gen .buy{text-align:right;white-space:nowrap}
+  .gen .cost{
+    font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;
+    color:var(--kiln);
+  }
+  .gen.locked .cost{color:var(--dim)}
+  .gen .costlbl{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
+  .gen.affordable{border-color:color-mix(in srgb,var(--kiln) 55%, var(--line))}
+  .gen.affordable::after{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--kiln);
+  }
+
+  footer{margin-top:auto;padding-top:14px;text-align:center;color:var(--dim);font-size:11px;letter-spacing:.04em}
+
+  /* ---- toast ---- */
+  .toast{
+    position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+    background:var(--surface);border:1px solid var(--line);color:var(--text);
+    padding:11px 16px;border-radius:13px;box-shadow:var(--shadow);font-size:13px;
+    opacity:0;transition:opacity .3s,transform .3s;z-index:20;max-width:90vw;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast b{color:var(--kiln)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <b>Incrementile</b>
+      <span>L'atelier du céramiste</span>
+    </div>
+    <div class="tools">
+      <button class="icon-btn" id="theme" title="Thème">◑</button>
+      <button class="icon-btn" id="reset" title="Recommencer">↺</button>
+    </div>
+  </header>
+
+  <div class="readout">
+    <div class="amount" id="argile">0</div>
+    <span class="unit">grammes d'argile</span>
+    <div class="rate">Production : <b id="rate">0</b> /s</div>
+  </div>
+
+  <div class="stage">
+    <button class="clay" id="clay" aria-label="Récolter de l'argile"></button>
+  </div>
+  <div class="clay-hint" style="text-align:center;margin:-14px 0 20px">Tape le bloc pour extraire l'argile</div>
+
+  <div class="shop-head">
+    <h2>Ateliers &amp; tuiles</h2>
+    <small id="totalowned">0 acquis</small>
+  </div>
+  <div class="shop" id="shop"></div>
+
+  <footer>Sauvegarde automatique · <span id="version">v0.1</span></footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const GENS = [
+    {id:'apprenti', name:'Apprenti potier',     flavor:"Malaxe l'argile à la main",      base:15,       prod:0.1,  color:'#8a5a3c'},
+    {id:'plate',    name:'Tuile plate',          flavor:"La tuile de base, cuite au four", base:120,      prod:1,    color:'#c56a3c'},
+    {id:'canal',    name:'Tuile canal',          flavor:"Courbée à la romaine",            base:1300,     prod:8,    color:'#a3472a'},
+    {id:'vernis',   name:'Carreau vernissé',     flavor:"Recouvert d'un émail brillant",   base:14000,    prod:47,   color:'#2fa69a'},
+    {id:'zellige',  name:'Zellige',              flavor:"Mosaïque taillée à la main",      base:160000,   prod:260,  color:'#2f6fb0'},
+    {id:'or',       name:"Tuile émaillée d'or",  flavor:"Feuille d'or à la cuisson",       base:2e6,      prod:1400, color:'#e0a53c'},
+    {id:'four',     name:'Four à bois',          flavor:"Cuisson en continu, jour et nuit",base:2.5e7,    prod:7800, color:'#d64f2a'},
+  ];
+  const GROWTH = 1.15;
+  const SAVE_KEY = 'incrementile.save.v1';
+
+  let state = { argile:0, owned:{}, tapTotal:0, lastSave:Date.now() };
+  GENS.forEach(g => state.owned[g.id] = 0);
+
+  // ---------- number formatting ----------
+  const SUFFIX = ['','K','M','Md','B','T','Qa','Qi','Sx','Sp'];
+  function fmt(n){
+    if(!isFinite(n)) return '∞';
+    if(n < 1000) return (n>=100||Number.isInteger(n)) ? Math.floor(n).toString()
+                                                     : (Math.round(n*10)/10).toString();
+    let t = Math.floor(Math.log10(n)/3);
+    t = Math.min(t, SUFFIX.length-1);
+    const m = n/Math.pow(1000,t);
+    const dec = m<10 ? 2 : m<100 ? 1 : 0;
+    return m.toFixed(dec) + SUFFIX[t];
+  }
+
+  const costOf = g => Math.floor(g.base * Math.pow(GROWTH, state.owned[g.id]));
+  const perSec = () => GENS.reduce((s,g)=> s + g.prod*state.owned[g.id], 0);
+  const tapGain = () => 1 + perSec()*0.02;
+
+  // ---------- persistence ----------
+  function save(){
+    state.lastSave = Date.now();
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+  function load(){
+    try{
+      const raw = localStorage.getItem(SAVE_KEY);
+      if(!raw) return;
+      const s = JSON.parse(raw);
+      state.argile = s.argile||0;
+      state.tapTotal = s.tapTotal||0;
+      state.lastSave = s.lastSave||Date.now();
+      GENS.forEach(g => state.owned[g.id] = (s.owned && s.owned[g.id])||0);
+    }catch(e){}
+  }
+  function offlineEarnings(){
+    const dt = Math.min((Date.now()-state.lastSave)/1000, 60*60*8); // cap 8h
+    const gain = perSec()*dt;
+    if(gain > 1 && dt > 5){
+      state.argile += gain;
+      toast(`De retour à l'atelier ! <b>+${fmt(gain)}</b> g d'argile pendant ton absence`);
+    }
+  }
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const els = { argile:$('argile'), rate:$('rate'), shop:$('shop'), stage:document.querySelector('.stage'),
+                totalowned:$('totalowned') };
+  const rows = {};
+
+  function buildShop(){
+    GENS.forEach(g => {
+      const el = document.createElement('button');
+      el.className = 'gen';
+      el.innerHTML = `
+        <div class="tile" style="background:${g.color}"></div>
+        <div class="info">
+          <div class="name">${g.name} <span class="count">0</span></div>
+          <div class="flavor">${g.flavor}</div>
+          <div class="prod">+${fmt(g.prod)} /s chacune</div>
+        </div>
+        <div class="buy">
+          <div class="cost">${fmt(costOf(g))}</div>
+          <div class="costlbl">argile</div>
+        </div>`;
+      el.addEventListener('click', () => buy(g));
+      els.shop.appendChild(el);
+      rows[g.id] = {
+        el, count:el.querySelector('.count'), cost:el.querySelector('.cost')
+      };
+    });
+  }
+
+  function buy(g){
+    const cost = costOf(g);
+    if(state.argile < cost) return;
+    state.argile -= cost;
+    state.owned[g.id]++;
+    save();
+    renderShop(true);
+  }
+
+  let lastUnlockTier = 0;
+  function renderShop(force){
+    let total = 0, firstLocked = true;
+    GENS.forEach((g,i) => {
+      const owned = state.owned[g.id];
+      total += owned;
+      const cost = costOf(g);
+      const r = rows[g.id];
+      // reveal rule: show a generator once the previous one is owned, or it's already owned
+      const prevOwned = i===0 ? 1 : state.owned[GENS[i-1].id];
+      const visible = owned>0 || prevOwned>0;
+      r.el.hidden = !visible;
+      if(!visible) return;
+      r.count.textContent = owned;
+      r.cost.textContent = fmt(cost);
+      const afford = state.argile >= cost;
+      r.el.classList.toggle('affordable', afford);
+      r.el.classList.toggle('locked', !afford);
+    });
+    els.totalowned.textContent = total + (total>1?' tuiles posées':' tuile posée');
+  }
+
+  // ---------- tap ----------
+  function spawnFloat(x, y, txt){
+    const f = document.createElement('div');
+    f.className = 'float';
+    f.textContent = txt;
+    const rect = els.stage.getBoundingClientRect();
+    f.style.left = (x - rect.left) + 'px';
+    f.style.top  = (y - rect.top) + 'px';
+    els.stage.appendChild(f);
+    setTimeout(() => f.remove(), 900);
+  }
+  function doTap(x, y){
+    const g = tapGain();
+    state.argile += g;
+    state.tapTotal += g;
+    spawnFloat(x, y, '+' + fmt(g));
+  }
+  $('clay').addEventListener('pointerdown', e => {
+    e.preventDefault();
+    doTap(e.clientX, e.clientY);
+  });
+
+  // ---------- loop ----------
+  let last = performance.now(), shopAcc = 0;
+  function loop(now){
+    const dt = Math.min((now-last)/1000, 0.25); last = now;
+    state.argile += perSec()*dt;
+    els.argile.textContent = fmt(Math.floor(state.argile));
+    els.rate.textContent = fmt(perSec());
+    shopAcc += dt;
+    if(shopAcc > 0.12){ renderShop(); shopAcc = 0; }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- controls ----------
+  $('theme').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const dark = cur ? cur==='dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  });
+  $('reset').addEventListener('click', () => {
+    if(confirm("Casser toutes les tuiles et recommencer l'atelier à zéro ?")){
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+    }
+  });
+
+  let toastTimer;
+  function toast(html){
+    const t = $('toast');
+    t.innerHTML = html; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 4200);
+  }
+
+  document.addEventListener('visibilitychange', () => { if(document.hidden) save(); });
+  setInterval(save, 10000);
+
+  // ---------- boot ----------
+  load();
+  offlineEarnings();
+  buildShop();
+  renderShop(true);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
