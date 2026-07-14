@@ -398,6 +398,18 @@
     if(mini && mini.active && !mini.done){ e.preventDefault(); smoothAt(e.clientX, e.clientY); }
   }, {passive:false});
   document.addEventListener('pointerup', () => { if(mini) mini.active = false; });
+
+  // Fiabilité mobile : geler les reconstructions du DOM pendant tout le geste
+  // (du pointerdown jusqu'au click synthétisé), sinon le bouton touché est
+  // remplacé en plein tap et le click n'est jamais émis.
+  document.addEventListener('pointerdown', () => { pointerDown = true; tapLock = true; clearTimeout(tapTimer); }, true);
+  document.addEventListener('pointercancel', () => { pointerDown = false; tapLock = false; flushRender(); }, true);
+  document.addEventListener('pointerup', () => {
+    pointerDown = false;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => { tapLock = false; flushRender(); }, 500); // secours si aucun click ne suit
+  }, true);
+  document.addEventListener('click', () => { tapLock = false; clearTimeout(tapTimer); setTimeout(flushRender, 0); }, true);
   function deliver(oid){
     const o = state.orders.find(x => x.id === oid); if(!o) return;
     if((state.inventory[o.tileId]||0) < o.qty) return;
@@ -444,6 +456,8 @@
 
   // ---------- rendering ----------
   let activeTab = 'atelier';
+  let pointerDown = false, tapLock = false, renderPending = false, tapTimer = 0;
+  function flushRender(){ if(renderPending && !pointerDown && !tapLock){ renderPending = false; renderAll(); } }
 
   function renderTop(){
     $('v-money').textContent = eur(state.money);
@@ -542,6 +556,9 @@
   }
 
   function renderAll(){
+    // Ne pas reconstruire le DOM pendant qu'un doigt est posé : sinon le bouton
+    // touché est remplacé entre le pointerdown et le click, et le tap est perdu.
+    if(pointerDown || tapLock){ renderPending = true; return; }
     renderTop();
     if(activeTab==='atelier') renderAtelier();
     else if(activeTab==='commandes') renderOrders();
