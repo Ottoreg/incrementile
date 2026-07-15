@@ -340,8 +340,8 @@
   const cooldownMult  = () => has('relais') ? 0.7 : 1;   // méthode payante : -30 % de cooldown
   const buyerCost     = () => Math.floor(400 * Math.pow(BUY_GROWTH, state.buyers));
   const buyerTarget   = () => state.buyers * 400;
-  const BUYER_CD      = 30000; // tournée du muletier (ms) — fortement augmentée
-  const buyerInterval = () => BUYER_CD / Math.max(1, state.buyers) * cooldownMult();
+  const BUYER_CD      = 30000; // cooldown FIXE d'une tournée, par muletier (le nombre ↑ le débit, pas la vitesse)
+  const buyerInterval = () => BUYER_CD * cooldownMult();
   const sellersOn     = () => has('vendeur');
   const sellerCost    = () => Math.floor(800 * Math.pow(BUY_GROWTH, state.sellers));
   const SELLER_CD     = 15000; // délai de base entre deux livraisons d'un vendeur (ms)
@@ -562,19 +562,24 @@
   // vendeurs : livrent automatiquement la commande la plus payante en stock
   function runSellers(dtMs){
     if(!sellersOn() || state.sellers <= 0 || state.sellerPaused) return false;
-    const interval = sellerInterval(); // délai de base entre livraisons (accéléré par le nombre de vendeurs)
-    let prog = (state.sellerProg||0) + dtMs*state.sellers, changed = false, guard = 0;
+    const interval = sellerInterval(); // cooldown FIXE par vendeur
+    let prog = (state.sellerProg||0) + dtMs, changed = false, guard = 0;
     while(prog >= interval && guard < 100000){
-      let best = null;
-      for(const o of state.orders){
-        if((state.inventory[o.tileId]||0) >= o.qty && (!best || o.reward > best.reward)) best = o;
+      let delivered = 0;
+      for(let i = 0; i < state.sellers; i++){          // chaque vendeur livre 1 commande en parallèle
+        let best = null;
+        for(const o of state.orders){
+          if((state.inventory[o.tileId]||0) >= o.qty && (!best || o.reward > best.reward)) best = o;
+        }
+        if(!best) break;
+        state.inventory[best.tileId] -= best.qty;
+        state.money += best.reward;
+        state.orders = state.orders.filter(x => x.id !== best.id);
+        changed = true; delivered++;
       }
-      if(!best){ prog = interval; break; }   // rien à livrer : prêt pour la prochaine commande
-      state.inventory[best.tileId] -= best.qty;
-      state.money += best.reward;
-      state.orders = state.orders.filter(x => x.id !== best.id);
-      state.nextOrderAt = Math.min(state.nextOrderAt, Date.now()+6000);
-      prog -= interval; changed = true; guard++;
+      if(delivered > 0) state.nextOrderAt = Math.min(state.nextOrderAt, Date.now()+6000);
+      prog -= interval; guard++;
+      if(delivered === 0){ prog = Math.min(prog, interval); break; } // rien à livrer : on attend
     }
     state.sellerProg = prog;
     return changed;
@@ -652,7 +657,7 @@
       bt.hidden = false; bc.hidden = false;
       const bcost = buyerCost(), bp = state.buyerPaused;
       const bstatus = state.buyers===0 ? "Rapporte l'argile par tournées régulières"
-        : bp ? "⏸ En pause" : `Charge jusqu'à ${fmt(buyerTarget())} argile · tournée / ${(buyerInterval()/1000).toFixed(1)}s`;
+        : bp ? "⏸ En pause" : `Charge jusqu'à ${fmt(buyerTarget())} argile · tournée / ${(buyerInterval()/1000).toFixed(1)}s par muletier`;
       bc.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div style="min-width:0">
@@ -733,9 +738,9 @@
     else {
       st.hidden = false; sc.hidden = false;
       const scost = sellerCost(), sp = state.sellerPaused;
-      const rate = (sellerInterval()/1000/Math.max(1,state.sellers)).toFixed(1);
+      const rate = (sellerInterval()/1000).toFixed(1);
       const sstatus = state.sellers===0 ? "Honore les commandes en stock automatiquement"
-        : sp ? "⏸ En pause" : `Livre la commande la plus payante · 1 / ${rate}s`;
+        : sp ? "⏸ En pause" : `Livre la plus payante · 1 / ${rate}s par vendeur`;
       sc.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div style="min-width:0">
