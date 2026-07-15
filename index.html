@@ -471,6 +471,9 @@
     const q = mini.smoothed / mini.total;
     const cb = mini.onDone; mini = null;
     $('mini').classList.remove('show');
+    // Si le modelage se termine doigt encore posé, avaler le click fantôme
+    // qui se produirait sur le bouton révélé sous le doigt au relâchement.
+    if(pointerDown) swallowClick = true;
     cb(q);
   }
   $('mini-cancel').addEventListener('click', () => {
@@ -488,7 +491,7 @@
   // Fiabilité mobile : geler les reconstructions du DOM pendant tout le geste
   // (du pointerdown jusqu'au click synthétisé), sinon le bouton touché est
   // remplacé en plein tap et le click n'est jamais émis.
-  document.addEventListener('pointerdown', () => { pointerDown = true; tapLock = true; clearTimeout(tapTimer); }, true);
+  document.addEventListener('pointerdown', () => { pointerDown = true; tapLock = true; swallowClick = false; clearTimeout(tapTimer); }, true);
   document.addEventListener('pointercancel', () => { pointerDown = false; tapLock = false; flushRender(); }, true);
   document.addEventListener('pointerup', () => {
     pointerDown = false;
@@ -629,7 +632,7 @@
 
   // ---------- rendering ----------
   let activeTab = 'atelier';
-  let pointerDown = false, tapLock = false, renderPending = false, tapTimer = 0;
+  let pointerDown = false, tapLock = false, swallowClick = false, renderPending = false, tapTimer = 0;
   function flushRender(){ if(renderPending && !pointerDown && !tapLock){ renderPending = false; renderAll(); } }
 
   function renderTop(){
@@ -801,6 +804,7 @@
 
   // ---------- event delegation ----------
   $('root').addEventListener('click', e => {
+    if(swallowClick){ swallowClick = false; return; } // clic fantôme après un modelage terminé doigt posé
     const el = e.target.closest('[data-action]'); if(!el) return;
     const a = el.dataset.action;
     if(a==='tab'){ switchTab(el.dataset.tab); }
