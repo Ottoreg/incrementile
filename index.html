@@ -301,6 +301,9 @@
     {id:'etabli3',    name:'Troisième établi',      desc:"+1 fabrication simultanée",         cost:1600,  kind:'upg'},
     {id:'zellige',    name:'Taille du zellige',     desc:"Débloque le Zellige",               cost:3200,  kind:'recipe'},
     {id:'reputation', name:"Réputation d'artisan",  desc:"Commandes payées +25 %",            cost:5500,  kind:'upg'},
+    {id:'main1',      name:'Gestes assurés',        desc:"Modelage manuel : ×3 tuiles produites", cost:6000,    kind:'upg'},
+    {id:'main2',      name:'Main de maître',        desc:"Modelage manuel : ×10 tuiles produites",cost:90000,   kind:'upg'},
+    {id:'main3',      name:'Génie du potier',       desc:"Modelage manuel : ×30 tuiles produites",cost:1500000, kind:'upg'},
     {id:'gros1',      name:'Commandes en gros',     desc:"Les clients commandent une part de ton stock (+5 %)", cost:25000, kind:'upg'},
     {id:'renom2',     name:'Renommée régionale',    desc:"Commandes payées +25 %",            cost:40000, kind:'upg'},
     {id:'dorure',     name:'Dorure à la feuille',   desc:"Débloque la Tuile émaillée d'or",   cost:17000, kind:'recipe'},
@@ -318,6 +321,7 @@
 
   const SAVE_KEY = 'incrementile.save.v2';
   const CLAY_BUNDLE = 10, CLAY_UNIT = 0.8;
+  const ORDER_INTERVAL = 7000; // délai d'apparition des commandes (ms)
 
   let state = {
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
@@ -334,6 +338,7 @@
   const bundlePrice = () => Math.ceil(CLAY_BUNDLE * clayUnit());
   const speedMult   = () => (has('four')?0.75:1);
   const rewardMult  = () => 1 + (has('reputation')?0.25:0) + (has('renom2')?0.25:0) + (has('renom3')?0.5:0);
+  const handMult    = () => has('main3') ? 30 : has('main2') ? 10 : has('main1') ? 3 : 1; // rendement modelage manuel
   const bulkFactor  = () => (has('gros1')?0.05:0) + (has('gros2')?0.10:0); // part du stock commandée
   const knowsRecipe = r => r.tech === null || has(r.tech);
   const knownRecipes = () => RECIPES.filter(knowsRecipe);
@@ -432,11 +437,12 @@
     const now = Date.now();
     const timeMult = 1 - 0.5*q;                    // beau modelage = cuisson bien plus rapide
     const dur = r.time*1000*speedMult()*timeMult;
-    const yieldN = q >= 1 ? 3 : q >= 0.7 ? 2 : 1;  // modelage parfait = 2 tuiles bonus
+    const baseYield = q >= 1 ? 3 : q >= 0.7 ? 2 : 1;  // qualité du modelage
+    const yieldN = baseYield * handMult();             // × rendement manuel (méthodes)
     state.crafts.push({ tileId:id, start:now, end:now+dur, yield:yieldN });
-    if(q >= 1)        toast(`Chef-d'œuvre ! +2 tuiles bonus · cuisson éclair`);
-    else if(q >= 0.7) toast(`Belle tuile (${Math.round(q*100)} %) · +1 tuile bonus · cuisson accélérée`);
-    else              toast(`Tuile modelée (${Math.round(q*100)} %) · c'est parti pour la cuisson`);
+    if(q >= 1)        toast(`Chef-d'œuvre ! ${fmt(yieldN)} tuiles · cuisson éclair`);
+    else if(q >= 0.7) toast(`Belle tuile (${Math.round(q*100)} %) · ${fmt(yieldN)} tuiles · cuisson accélérée`);
+    else              toast(`Tuile modelée (${Math.round(q*100)} %) · ${fmt(yieldN)} tuile${yieldN>1?'s':''}`);
     save(); renderAll();
   }
 
@@ -868,10 +874,10 @@
     // generate orders
     if(state.orders.length < orderSlots() && now >= state.nextOrderAt){
       state.orders.push(makeOrder());
-      state.nextOrderAt = now + 14000;
+      state.nextOrderAt = now + ORDER_INTERVAL;
       changed = true;
     } else if(state.orders.length >= orderSlots()){
-      state.nextOrderAt = now + 14000;
+      state.nextOrderAt = now + ORDER_INTERVAL;
     }
     if(changed) save();
     renderAll();
@@ -888,7 +894,7 @@
   if(!load()){ seedOrders(); }
   catchUp();
   if(state.orders.length === 0) seedOrders();
-  if(!state.nextOrderAt) state.nextOrderAt = Date.now()+14000;
+  if(!state.nextOrderAt) state.nextOrderAt = Date.now()+ORDER_INTERVAL;
   renderAll();
   lastTick = Date.now();
   tick();
