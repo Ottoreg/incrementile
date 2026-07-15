@@ -6,6 +6,13 @@
 <meta name="theme-color" content="#17110E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Incrementile">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Incarne un céramiste de l'Antiquité : achète de l'argile, modèle et cuis des tuiles, honore les commandes et fais prospérer ton atelier.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <title>Incrementile — l'atelier du céramiste</title>
 <style>
   :root{
@@ -634,6 +641,21 @@
   lastTick = Date.now();
   tick();
 })();
+</script>
+
+<script>
+  // PWA : enregistrement du service worker (hors-ligne + auto-update)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+  // Demande un stockage persistant pour éviter que la sauvegarde soit évincée
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persisted()
+      .then((granted) => { if (!granted) navigator.storage.persist().catch(() => {}); })
+      .catch(() => {});
+  }
 </script>
 </body>
 </html>
