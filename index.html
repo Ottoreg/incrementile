@@ -459,7 +459,8 @@
     for(let i=0;i<total;i++){ const d=document.createElement('div'); d.className='lump'; pad.appendChild(d); }
     $('mini-prog').textContent = 'Lissé : 0 %';
     $('mini-fill').style.width = '100%';
-    const dur = total * perCellMs(tier);   // plus de cases + moins de temps/case = plus dur
+    let dur = total * perCellMs(tier);      // plus de cases + moins de temps/case = plus dur
+    if(tier >= 3) dur = Math.max(1500, dur - 2000); // t3 : -2 s
     mini = { active:false, done:false, smoothed:0, total, onDone, start:performance.now(), dur };
     $('mini').classList.add('show');
     requestAnimationFrame(miniLoop);
