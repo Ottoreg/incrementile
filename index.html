@@ -113,6 +113,8 @@
   .order .reward{font-weight:800;color:var(--money);font-size:16px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .order .actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}
   .order .miss{font-size:12px;color:var(--bad)}
+  .order.special{border-color:var(--kiln);box-shadow:0 0 0 1px var(--kiln), var(--shadow)}
+  .prestige{font-size:10px;font-weight:800;color:#fff;background:var(--kiln);border-radius:20px;padding:1px 8px;letter-spacing:.03em;white-space:nowrap}
   .mini-swatch{width:16px;height:16px;border-radius:4px;display:inline-block;vertical-align:middle}
 
   /* methods */
@@ -315,6 +317,7 @@
     {id:'main3',      name:'Génie du potier',       desc:"Modelage manuel : ×30 tuiles produites",cost:1500000, kind:'upg'},
     {id:'gros1',      name:'Commandes en gros',     desc:"Les clients commandent une part de ton stock (+5 %)", cost:25000, kind:'upg'},
     {id:'renom2',     name:'Renommée régionale',    desc:"Commandes payées +25 %",            cost:40000, kind:'upg'},
+    {id:'special',    name:'Mécénat impérial',      desc:"Fait apparaître des commandes de prestige (×10 à ×100)", cost:120000, kind:'upg'},
     {id:'dorure',     name:'Dorure à la feuille',   desc:"Débloque la Tuile émaillée d'or",   cost:17000, kind:'recipe'},
     {id:'mosaique',   name:'Art de la mosaïque',    desc:"Débloque la Mosaïque byzantine (tier 2)", cost:60000,   kind:'recipe'},
     {id:'azulejo',    name:'Azulejo',               desc:"Débloque l'Azulejo peint (tier 3)",       cost:220000,  kind:'recipe'},
@@ -333,6 +336,7 @@
   const CLIENTS = ["Le Sénateur Flavius","Villa Pompéienne","Temple d'Apollon","Livia Drusilla","Quintus le Marchand",
     "Thermes d'Ostie","La Domus Aurea","Cornelia","Atelier du Forum","Marcus le Bâtisseur",
     "Théâtre d'Épidaure","Prêtresse Julia","Villa Adriana","Le Port de Pouzzoles"];
+  const PRESTIGE_CLIENTS = ["L'Empereur","Le Sénat de Rome","Le Grand Temple","Le Palais impérial","La Cité de Rome","Le Colisée"];
 
   const SAVE_KEY = 'incrementile.save.v2';
   const CLAY_BUNDLE = 10, CLAY_UNIT = 0.8;
@@ -428,11 +432,18 @@
   function makeOrder(){
     const pool = knownRecipes();
     const r = pool[Math.floor(Math.random()*pool.length)];
+    const margin = 1.9 + Math.random()*0.7;
+    const special = has('special') && Math.random() < 0.12;               // commande de prestige
+    const m = special ? (Math.random() < 0.2 ? 100 : 10) : 1;             // ×10 (courant) ou ×100 (rare)
     const base = 2 + Math.floor(Math.random()*5);                          // 2..6
     const bulk = Math.floor((state.inventory[r.id]||0) * bulkFactor());    // grossit avec le stock
-    const qty = base + bulk;
-    const reward = Math.round(r.value * qty * (1.9 + Math.random()*0.7) * rewardMult());
-    return { id:state.orderSeq++, tileId:r.id, qty, reward, client:CLIENTS[Math.floor(Math.random()*CLIENTS.length)] };
+    const qty = special ? base * (m===100 ? 25 : 8)                        // grosse quantité à accumuler
+                        : base + bulk;
+    const reward = Math.round(r.value * qty * margin * rewardMult() * m);  // paie ×m par tuile
+    const clients = special ? PRESTIGE_CLIENTS : CLIENTS;
+    const o = { id:state.orderSeq++, tileId:r.id, qty, reward, client:clients[Math.floor(Math.random()*clients.length)] };
+    if(special) o.special = m;
+    return o;
   }
   function seedOrders(){ for(let i=0;i<3;i++) state.orders.push(makeOrder()); }
 
@@ -839,9 +850,9 @@
     if(state.orders.length === 0){ wrap.innerHTML = `<div class="empty">Pas de commande pour l'instant. De nouveaux clients arrivent bientôt…</div>`; return; }
     wrap.innerHTML = state.orders.map(o => {
       const r = R(o.tileId), stock = state.inventory[o.tileId]||0, ok = stock >= o.qty, miss = o.qty - stock;
-      return `<div class="card order">
+      return `<div class="card order${o.special?' special':''}">
         <div class="top">
-          <div><div class="client">${o.client}</div>
+          <div><div class="client">${o.client} ${o.special?`<span class="prestige">★ prestige ×${o.special}</span>`:''}</div>
             <div class="want"><span class="mini-swatch" style="background:${r.color}"></span>${fmt(o.qty)} × ${r.name}</div></div>
           <div class="reward">${eur(o.reward)}</div>
         </div>
