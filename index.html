@@ -277,11 +277,17 @@
     {id:'azulejo',  name:'Azulejo peint',        clay:50,  time:48, value:2800,  color:'#2f8fd6', tech:'azulejo'},
     {id:'imperiale',name:'Céramique impériale',  clay:80,  time:68, value:7800,  color:'#159068', tech:'imperiale'},
     {id:'albatre',  name:"Fresque d'albâtre",    clay:130, time:95, value:22000, color:'#b9a67e', tech:'albatre'},
+    {id:'damier',   name:'Carreau en damier',    clay:200,  time:130, value:65000,    color:'#b0392b', tech:'damier'},
+    {id:'cosmati',  name:'Pavement cosmatesque', clay:300,  time:170, value:180000,   color:'#6d3b8f', tech:'cosmati'},
+    {id:'majolique',name:'Majolique',            clay:450,  time:220, value:500000,   color:'#2f8fd6', tech:'majolique'},
+    {id:'arabesque',name:'Carreau arabesque',    clay:650,  time:290, value:1400000,  color:'#159068', tech:'arabesque'},
+    {id:'vitrail',  name:'Carreau vitrail',      clay:950,  time:380, value:4000000,  color:'#c94f8a', tech:'vitrail'},
+    {id:'sacre',    name:'Carreau du sacre',     clay:1400, time:500, value:12000000, color:'#d4a017', tech:'sacre'},
   ];
   const R = id => RECIPES.find(r => r.id === id);
   // tiers de difficulté : 3 tuiles par tier depuis la tuile plate (1..X)
   const tierOf   = r => Math.floor(RECIPES.indexOf(r)/3) + 1;
-  const gridOf   = tier => Math.min(2 + tier, 6);        // tier1 3×3, tier2 4×4, tier3 5×5…
+  const gridOf   = tier => Math.min(2 + tier, 7);        // t1 3×3, t2 4×4, t3 5×5, t4 6×6, t5 7×7
   const perCellMs= tier => Math.max(240, 560 - tier*70); // temps par case, décroissant = plus dur
 
   const METHODS = [
@@ -313,6 +319,12 @@
     {id:'albatre',    name:"Fresque d'albâtre",     desc:"Débloque la Fresque d'albâtre (tier 3)",  cost:3000000, kind:'recipe'},
     {id:'gros2',      name:'Commandes en lot',      desc:"Part du stock commandée +10 %",     cost:300000,  kind:'upg'},
     {id:'renom3',     name:'Gloire impériale',      desc:"Commandes payées +50 %",            cost:600000,  kind:'upg'},
+    {id:'damier',     name:'Carrelage en damier',   desc:"Débloque le Carreau en damier (tier 4)",    cost:8000000,    kind:'recipe'},
+    {id:'cosmati',    name:'Art cosmatesque',       desc:"Débloque le Pavement cosmatesque (tier 4)", cost:25000000,   kind:'recipe'},
+    {id:'majolique',  name:'Majolique',             desc:"Débloque la Majolique (tier 4)",            cost:80000000,   kind:'recipe'},
+    {id:'arabesque',  name:'Arabesques',            desc:"Débloque le Carreau arabesque (tier 5)",    cost:250000000,  kind:'recipe'},
+    {id:'vitrail',    name:'Art du vitrail',        desc:"Débloque le Carreau vitrail (tier 5)",      cost:800000000,  kind:'recipe'},
+    {id:'sacre',      name:'Carreau du sacre',      desc:"Débloque le Carreau du sacre (tier 5)",     cost:2500000000, kind:'recipe'},
   ];
 
   const CLIENTS = ["Le Sénateur Flavius","Villa Pompéienne","Temple d'Apollon","Livia Drusilla","Quintus le Marchand",
@@ -455,12 +467,22 @@
     pad.style.setProperty('--tile', recipe.color);
     pad.style.gridTemplateColumns = `repeat(${N},1fr)`;
     pad.style.gridTemplateRows = `repeat(${N},1fr)`;
+    // t4/t5 : damier coloré révélé sous l'argile (plus ou moins complexe)
+    pad.style.background = ''; pad.style.backgroundSize = '';
+    if(tier >= 4){
+      const t = 200/N; // une tuile de damier = 2 cases
+      pad.style.background = tier >= 5
+        ? `conic-gradient(#c0473b 0% 25%, #2f6fb0 25% 50%, #e0a53c 50% 75%, #2f9d90 75% 100%)`
+        : `conic-gradient(${recipe.color} 0% 25%, #efe6d4 25% 50%, ${recipe.color} 50% 75%, #efe6d4 75% 100%)`;
+      pad.style.backgroundSize = `${t}% ${t}%`;
+    }
     pad.innerHTML = '';
     for(let i=0;i<total;i++){ const d=document.createElement('div'); d.className='lump'; pad.appendChild(d); }
     $('mini-prog').textContent = 'Lissé : 0 %';
     $('mini-fill').style.width = '100%';
-    let dur = total * perCellMs(tier);      // plus de cases + moins de temps/case = plus dur
-    if(tier >= 3) dur = Math.max(1500, dur - 2000); // t3 : -2 s
+    let dur = total * perCellMs(tier) - 2000; // -2 s pour tous les tiers
+    if(tier >= 3) dur -= 2000;                // t3+ : -2 s de plus
+    dur = Math.max(1500, dur);
     mini = { active:false, done:false, smoothed:0, total, onDone, start:performance.now(), dur };
     $('mini').classList.add('show');
     requestAnimationFrame(miniLoop);
