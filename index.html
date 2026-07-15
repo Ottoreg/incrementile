@@ -300,9 +300,9 @@
     {id:'damier',   name:'Carreau en damier',    clay:200,  time:130, value:65000,    color:'#b0392b', tech:'damier'},
     {id:'cosmati',  name:'Pavement cosmatesque', clay:300,  time:170, value:180000,   color:'#6d3b8f', tech:'cosmati'},
     {id:'majolique',name:'Majolique',            clay:450,  time:220, value:500000,   color:'#2f8fd6', tech:'majolique'},
-    {id:'arabesque',name:'Carreau arabesque',    clay:650,  time:290, value:1400000,  color:'#159068', tech:'arabesque'},
-    {id:'vitrail',  name:'Carreau vitrail',      clay:950,  time:380, value:4000000,  color:'#c94f8a', tech:'vitrail'},
-    {id:'sacre',    name:'Carreau du sacre',     clay:1400, time:500, value:12000000, color:'#d4a017', tech:'sacre'},
+    {id:'arabesque',name:'Carreau arabesque',    clay:650,  time:290, value:1400000,  color:'#159068', tech:'arabesque', checker:['#159068','#e8dcc2','#159068','#0d6b4c']},
+    {id:'vitrail',  name:'Carreau vitrail',      clay:950,  time:380, value:4000000,  color:'#c94f8a', tech:'vitrail',   checker:['#c94f8a','#e0a53c','#c94f8a','#5b3fa0']},
+    {id:'sacre',    name:'Carreau du sacre',     clay:1400, time:500, value:12000000, color:'#d4a017', tech:'sacre',     checker:['#d4a017','#b0392b','#d4a017','#2f6fb0']},
   ];
   const R = id => RECIPES.find(r => r.id === id);
   // tiers de difficulté : 3 tuiles par tier depuis la tuile plate (1..X)
@@ -506,9 +506,10 @@
     pad.style.background = ''; pad.style.backgroundSize = '';
     if(tier >= 4){
       const t = 200/N; // une tuile de damier = 2 cases
-      pad.style.background = tier >= 5
-        ? `conic-gradient(#c0473b 0% 25%, #2f6fb0 25% 50%, #e0a53c 50% 75%, #2f9d90 75% 100%)`
-        : `conic-gradient(${recipe.color} 0% 25%, #efe6d4 25% 50%, ${recipe.color} 50% 75%, #efe6d4 75% 100%)`;
+      const c = tier >= 5
+        ? (recipe.checker || ['#c0473b','#2f6fb0','#e0a53c','#2f9d90'])       // damier propre à chaque tuile t5
+        : [recipe.color, '#efe6d4', recipe.color, '#efe6d4'];                 // t4 : damier 2 couleurs
+      pad.style.background = `conic-gradient(${c[0]} 0% 25%, ${c[1]} 25% 50%, ${c[2]} 50% 75%, ${c[3]} 75% 100%)`;
       pad.style.backgroundSize = `${t}% ${t}%`;
     }
     pad.innerHTML = '';
