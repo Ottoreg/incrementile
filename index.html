@@ -227,6 +227,8 @@
 
     <!-- COMMANDES -->
     <section class="panel" id="panel-commandes">
+      <div class="sec-title" id="seller-title" hidden><h2>Vente automatique</h2><small>vendeurs</small></div>
+      <div class="card" id="seller-card" hidden></div>
       <div class="sec-title"><h2>Commandes clients</h2><small id="order-count"></small></div>
       <div id="orders-wrap" style="display:flex;flex-direction:column;gap:12px"></div>
     </section>
@@ -280,6 +282,7 @@
     {id:'emaillage',  name:'Émaillage',             desc:"Débloque le Carreau vernissé",      cost:450,   kind:'recipe'},
     {id:'four',       name:'Four rapide',           desc:"Cuisson 25 % plus rapide",          cost:650,   kind:'upg'},
     {id:'acheteur',   name:'Engager un intendant',  desc:"Débloque les acheteurs : rachat auto de l'argile quand le stock baisse", cost:700, kind:'upg'},
+    {id:'vendeur',    name:'Recruter un négociant',  desc:"Débloque les vendeurs : ils honorent les commandes en stock tout seuls", cost:1300, kind:'upg'},
     {id:'carnet',     name:'Carnet de commandes',   desc:"+2 commandes en attente",           cost:1000,  kind:'upg'},
     {id:'etabli3',    name:'Troisième établi',      desc:"+1 fabrication simultanée",         cost:1600,  kind:'upg'},
     {id:'zellige',    name:'Taille du zellige',     desc:"Débloque le Zellige",               cost:3200,  kind:'recipe'},
@@ -296,7 +299,9 @@
 
   let state = {
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
-    workerPool:0, assign:{}, workerProg:{}, buyers:0, nextOrderAt:0, lastSave:Date.now()
+    workerPool:0, assign:{}, workerProg:{},
+    buyers:0, buyerPaused:false, sellers:0, sellerPaused:false, sellerProg:0,
+    nextOrderAt:0, lastSave:Date.now()
   };
 
   // ---------- derived modifiers ----------
@@ -316,6 +321,8 @@
   const idleWorkers   = () => state.workerPool - assignedTotal();
   const buyerCost     = () => Math.floor(400 * Math.pow(1.7, state.buyers));
   const buyerTarget   = () => state.buyers * 100;
+  const sellersOn     = () => has('vendeur');
+  const sellerCost    = () => Math.floor(800 * Math.pow(1.7, state.sellers));
 
   // ---------- format ----------
   const SUF = ['','K','M','Md','B','T'];
@@ -336,7 +343,9 @@
       Object.assign(state, s);
       state.learned = s.learned||{}; state.inventory = s.inventory||{};
       state.crafts = s.crafts||[]; state.orders = s.orders||[];
-      state.workerProg = s.workerProg||{}; state.buyers = s.buyers||0;
+      state.workerProg = s.workerProg||{};
+      state.buyers = s.buyers||0; state.buyerPaused = !!s.buyerPaused;
+      state.sellers = s.sellers||0; state.sellerPaused = !!s.sellerPaused; state.sellerProg = s.sellerProg||0;
       // migration : ancien modèle {plate:2,...} -> pool total + répartition
       if(s.assign || s.workerPool != null){
         state.assign = s.assign||{}; state.workerPool = s.workerPool||0;
@@ -355,7 +364,7 @@
       return true;
     });
     const el = Math.min(now - state.lastSave, 8*3600*1000);
-    runBuyers(el); runWorkers(el);
+    runBuyers(el); runWorkers(el); runSellers(el);
   }
 
   // ---------- orders ----------
@@ -510,9 +519,41 @@
     toast(`Commande de ${o.client} refusée`);
     save(); renderAll();
   }
+  function hireSeller(){
+    if(!sellersOn()) return;
+    const cost = sellerCost();
+    if(state.money < cost) return toast("Pas assez pour recruter un vendeur");
+    state.money -= cost; state.sellers++;
+    toast("Vendeur recruté · il honore les commandes tout seul");
+    save(); renderAll();
+  }
+  function toggleBuyer(){ state.buyerPaused = !state.buyerPaused; toast(state.buyerPaused?"Acheteurs en pause":"Acheteurs actifs"); save(); renderAll(); }
+  function toggleSeller(){ state.sellerPaused = !state.sellerPaused; toast(state.sellerPaused?"Vendeurs en pause":"Vendeurs actifs"); save(); renderAll(); }
+
+  // vendeurs : livrent automatiquement la commande la plus payante en stock
+  function runSellers(dtMs){
+    if(!sellersOn() || state.sellers <= 0 || state.sellerPaused) return false;
+    const interval = 2500; // ms par livraison et par vendeur
+    let prog = (state.sellerProg||0) + dtMs*state.sellers, changed = false, guard = 0;
+    while(prog >= interval && guard < 100000){
+      let best = null;
+      for(const o of state.orders){
+        if((state.inventory[o.tileId]||0) >= o.qty && (!best || o.reward > best.reward)) best = o;
+      }
+      if(!best){ prog = interval; break; }   // rien à livrer : prêt pour la prochaine commande
+      state.inventory[best.tileId] -= best.qty;
+      state.money += best.reward;
+      state.orders = state.orders.filter(x => x.id !== best.id);
+      state.nextOrderAt = Math.min(state.nextOrderAt, Date.now()+6000);
+      prog -= interval; changed = true; guard++;
+    }
+    state.sellerProg = prog;
+    return changed;
+  }
+
   // acheteurs : rachètent l'argile pour la maintenir au-dessus d'un seuil
   function runBuyers(dtMs){
-    if(!buyersOn() || state.buyers <= 0) return false;
+    if(!buyersOn() || state.buyers <= 0 || state.buyerPaused) return false;
     const target = buyerTarget();
     if(state.clay >= target) return false;
     const unit = clayUnit();
@@ -572,14 +613,19 @@
     if(!buyersOn()){ bt.hidden = true; bc.hidden = true; }
     else {
       bt.hidden = false; bc.hidden = false;
-      const bcost = buyerCost();
+      const bcost = buyerCost(), bp = state.buyerPaused;
+      const bstatus = state.buyers===0 ? "Rachète l'argile quand le stock baisse"
+        : bp ? "⏸ En pause" : `Maintient l'argile ≥ ${fmt(buyerTarget())}`;
       bc.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div style="min-width:0">
             <div style="font-weight:700">Acheteur ${state.buyers>0?`<span class="badge stock">×${state.buyers}</span>`:''}</div>
-            <div style="font-size:12.5px;color:var(--dim);margin-top:3px">${state.buyers>0?`Maintient l'argile ≥ ${fmt(buyerTarget())}`:"Rachète l'argile quand le stock baisse"}</div>
+            <div style="font-size:12.5px;margin-top:3px;color:${bp?'var(--bad)':'var(--dim)'}">${bstatus}</div>
           </div>
-          <button class="btn money" data-action="hire-buyer" ${state.money<bcost?'disabled':''}>+1 · ${eur(bcost)}</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${state.buyers>0?`<button class="btn ghost" data-action="toggle-buyer">${bp?'Reprendre':'Pause'}</button>`:''}
+            <button class="btn money" data-action="hire-buyer" ${state.money<bcost?'disabled':''}>+1 · ${eur(bcost)}</button>
+          </div>
         </div>`;
     }
 
@@ -641,6 +687,28 @@
   }
 
   function renderOrders(){
+    // vendeur (vente automatique)
+    const st = $('seller-title'), sc = $('seller-card');
+    if(!sellersOn()){ st.hidden = true; sc.hidden = true; }
+    else {
+      st.hidden = false; sc.hidden = false;
+      const scost = sellerCost(), sp = state.sellerPaused;
+      const rate = (2.5/Math.max(1,state.sellers)).toFixed(1);
+      const sstatus = state.sellers===0 ? "Honore les commandes en stock automatiquement"
+        : sp ? "⏸ En pause" : `Livre la commande la plus payante · 1 / ${rate}s`;
+      sc.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div style="min-width:0">
+            <div style="font-weight:700">Vendeur ${state.sellers>0?`<span class="badge stock">×${state.sellers}</span>`:''}</div>
+            <div style="font-size:12.5px;margin-top:3px;color:${sp?'var(--bad)':'var(--dim)'}">${sstatus}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${state.sellers>0?`<button class="btn ghost" data-action="toggle-seller">${sp?'Reprendre':'Pause'}</button>`:''}
+            <button class="btn money" data-action="hire-seller" ${state.money<scost?'disabled':''}>+1 · ${eur(scost)}</button>
+          </div>
+        </div>`;
+    }
+
     $('order-count').textContent = `${state.orders.length} / ${orderSlots()}`;
     const wrap = $('orders-wrap');
     if(state.orders.length === 0){ wrap.innerHTML = `<div class="empty">Pas de commande pour l'instant. De nouveaux clients arrivent bientôt…</div>`; return; }
@@ -699,6 +767,9 @@
     else if(a==='hire'){ hireWorker(); }
     else if(a==='assign'){ assignWorker(el.dataset.id, parseInt(el.dataset.delta,10)); }
     else if(a==='hire-buyer'){ hireBuyer(); }
+    else if(a==='hire-seller'){ hireSeller(); }
+    else if(a==='toggle-buyer'){ toggleBuyer(); }
+    else if(a==='toggle-seller'){ toggleSeller(); }
     else if(a==='theme'){
       const cur = document.documentElement.getAttribute('data-theme');
       const dark = cur ? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
@@ -728,6 +799,7 @@
         changed = true;
       }
     }
+    if(runSellers(dtMs)) changed = true;
     // generate orders
     if(state.orders.length < orderSlots() && now >= state.nextOrderAt){
       state.orders.push(makeOrder());
