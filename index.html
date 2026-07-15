@@ -136,6 +136,7 @@
   .worker-head .wh-l b{font-size:17px}
   .worker-head .idle{color:var(--dim);font-size:12px;font-weight:600;margin-top:2px}
   .assign-list{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+  .lvl-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
   .stepper{display:flex;align-items:center;gap:9px}
   .stepper button{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font-size:19px;font-weight:800;cursor:pointer;display:grid;place-items:center;font-family:inherit;padding:0}
   .stepper button:active{transform:scale(.92)}
@@ -231,6 +232,8 @@
     <section class="panel" id="panel-commandes">
       <div class="sec-title" id="seller-title" hidden><h2>Vente automatique</h2><small>vendeurs</small></div>
       <div class="card" id="seller-card" hidden></div>
+      <div class="sec-title"><h2>Réputation</h2><small>niveau</small></div>
+      <div class="card" id="rep-card"></div>
       <div class="sec-title"><h2>Commandes clients</h2><small id="order-count"></small></div>
       <div id="orders-wrap" style="display:flex;flex-direction:column;gap:12px"></div>
     </section>
@@ -339,17 +342,18 @@
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
     workerPool:0, assign:{}, workerProg:{},
     buyers:0, buyerPaused:false, buyerProg:0, sellers:0, sellerPaused:false, sellerProg:0,
-    nextOrderAt:0, lastSave:Date.now()
+    repLevel:0, speedLevel:0, nextOrderAt:0, lastSave:Date.now()
   };
 
   // ---------- derived modifiers ----------
   const has = id => !!state.learned[id];
   const craftSlots  = () => 1 + (has('etabli2')?1:0) + (has('etabli3')?1:0);
-  const orderSlots  = () => 3 + (has('carnet')?2:0);
+  const orderSlots  = () => 3 + (has('carnet')?2:0) + state.sellers; // + capacité par vendeur
   const clayUnit    = () => CLAY_UNIT * (has('fournisseur')?0.75:1);
   const bundlePrice = () => Math.ceil(CLAY_BUNDLE * clayUnit());
   const speedMult   = () => (has('four')?0.75:1);
-  const rewardMult  = () => 1 + (has('reputation')?0.25:0) + (has('renom2')?0.25:0) + (has('renom3')?0.5:0);
+  const rewardMult  = () => 1 + (has('reputation')?0.25:0) + (has('renom2')?0.25:0) + (has('renom3')?0.5:0) + state.repLevel*0.10;
+  const repLevelCost= () => Math.floor(2500 * Math.pow(1.14, state.repLevel));
   const handMult    = () => has('main3') ? 30 : has('main2') ? 10 : has('main1') ? 3 : 1; // rendement modelage manuel
   const bulkFactor  = () => (has('gros1')?0.05:0) + (has('gros2')?0.10:0); // part du stock commandée
   const knowsRecipe = r => r.tech === null || has(r.tech);
@@ -369,8 +373,11 @@
   const sellerCost    = () => Math.floor(800 * Math.pow(BUY_GROWTH, state.sellers));
   const SELLER_CD     = 15000; // délai de base entre deux livraisons d'un vendeur (ms)
   const sellerInterval= () => SELLER_CD * cooldownMult();
+  // commandes générées au rythme des ventes auto (un peu plus vite que les vendeurs ne livrent)
+  const orderGenInterval= () => state.sellers > 0 ? Math.max(2500, Math.min(ORDER_INTERVAL, sellerInterval()/state.sellers*0.9)) : ORDER_INTERVAL;
   const workerYield     = () => has('moule3') ? 3 : has('moule2') ? 2 : 1; // tuiles par cycle
-  const workerCycleMult = () => has('cadence') ? 0.7 : 1;                        // ouvriers plus rapides
+  const workerCycleMult = () => (has('cadence') ? 0.7 : 1) * Math.pow(0.95, state.speedLevel); // + niveau de cadence
+  const speedLevelCost  = () => Math.floor(600 * Math.pow(1.14, state.speedLevel));
 
   // ---------- format ----------
   const SUF = ['','K','M','Md','B','T'];
@@ -395,6 +402,7 @@
       state.workerProg = s.workerProg||{};
       state.buyers = s.buyers||0; state.buyerPaused = !!s.buyerPaused; state.buyerProg = s.buyerProg||0;
       state.sellers = s.sellers||0; state.sellerPaused = !!s.sellerPaused; state.sellerProg = s.sellerProg||0;
+      state.repLevel = s.repLevel||0; state.speedLevel = s.speedLevel||0;
       // migration : ancien modèle {plate:2,...} -> pool total + répartition
       if(s.assign || s.workerPool != null){
         state.assign = s.assign||{}; state.workerPool = s.workerPool||0;
@@ -597,6 +605,20 @@
     toast("Vendeur recruté · il honore les commandes tout seul");
     save(); renderAll();
   }
+  function buyRepLevel(){
+    const c = repLevelCost();
+    if(state.money < c) return toast("Pas assez pour élever ta réputation");
+    state.money -= c; state.repLevel++;
+    toast(`Réputation · niveau ${state.repLevel}`);
+    save(); renderAll();
+  }
+  function buySpeedLevel(){
+    const c = speedLevelCost();
+    if(state.money < c) return toast("Pas assez pour améliorer la cadence");
+    state.money -= c; state.speedLevel++;
+    toast(`Cadence des ouvriers · niveau ${state.speedLevel}`);
+    save(); renderAll();
+  }
   function toggleBuyer(){ state.buyerPaused = !state.buyerPaused; toast(state.buyerPaused?"Acheteurs en pause":"Acheteurs actifs"); save(); renderAll(); }
   function toggleSeller(){ state.sellerPaused = !state.sellerPaused; toast(state.sellerPaused?"Vendeurs en pause":"Vendeurs actifs"); save(); renderAll(); }
 
@@ -763,10 +785,17 @@
           </div>
         </div>`;
       }).join('');
+      const scost = speedLevelCost();
+      const speedPct = Math.round((1 - Math.pow(0.95, state.speedLevel)) * 100);
       wc.innerHTML = `
         <div class="worker-head">
           <div class="wh-l"><b>${state.workerPool}</b> ouvrier${state.workerPool>1?'s':''}<div class="idle">${idle} au repos</div></div>
           <button class="btn money" data-action="hire" ${state.money<hcost?'disabled':''}>Embaucher · ${eur(hcost)}</button>
+        </div>
+        <div class="lvl-row">
+          <div><div style="font-weight:700;font-size:13.5px">Cadence · Niv ${state.speedLevel}</div>
+            <div style="font-size:12px;color:var(--dim);margin-top:2px">Ouvriers ${speedPct}% plus rapides</div></div>
+          <button class="btn money" data-action="speed-level" ${state.money<scost?'disabled':''}>Améliorer · ${eur(scost)}</button>
         </div>
         <div class="assign-list">${rows}</div>`;
     }
@@ -794,6 +823,16 @@
           </div>
         </div>`;
     }
+
+    // réputation (niveau)
+    const rcost = repLevelCost();
+    const repPct = Math.round((rewardMult()-1)*100);
+    $('rep-card').innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div><div style="font-weight:700">Réputation · Niv ${state.repLevel}</div>
+          <div style="font-size:12.5px;color:var(--dim);margin-top:3px">Commandes payées +${repPct} % au total</div></div>
+        <button class="btn money" data-action="rep-level" ${state.money<rcost?'disabled':''}>Améliorer · ${eur(rcost)}</button>
+      </div>`;
 
     $('order-count').textContent = `${state.orders.length} / ${orderSlots()}`;
     const wrap = $('orders-wrap');
@@ -857,6 +896,8 @@
     else if(a==='hire-seller'){ hireSeller(); }
     else if(a==='toggle-buyer'){ toggleBuyer(); }
     else if(a==='toggle-seller'){ toggleSeller(); }
+    else if(a==='rep-level'){ buyRepLevel(); }
+    else if(a==='speed-level'){ buySpeedLevel(); }
     else if(a==='theme'){
       const cur = document.documentElement.getAttribute('data-theme');
       const dark = cur ? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
@@ -897,10 +938,10 @@
     // generate orders
     if(state.orders.length < orderSlots() && now >= state.nextOrderAt){
       state.orders.push(makeOrder());
-      state.nextOrderAt = now + ORDER_INTERVAL;
+      state.nextOrderAt = now + orderGenInterval();
       changed = true;
     } else if(state.orders.length >= orderSlots()){
-      state.nextOrderAt = now + ORDER_INTERVAL;
+      state.nextOrderAt = now + orderGenInterval();
     }
     if(changed) save();
     renderAll();
