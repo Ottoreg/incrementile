@@ -95,6 +95,7 @@
   .recipe .req{font-size:12px;color:var(--dim);margin-top:3px;font-variant-numeric:tabular-nums}
   .badge{font-size:10.5px;font-weight:800;color:var(--dim);background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-variant-numeric:tabular-nums}
   .badge.stock{color:var(--glaze)}
+  .badge.tier{color:var(--kiln);border-color:color-mix(in srgb,var(--kiln) 40%, var(--line))}
 
   /* craft progress */
   .craft{display:grid;grid-template-columns:42px 1fr;gap:12px;align-items:center}
@@ -183,7 +184,7 @@
   .mini-fill{height:100%;width:100%;background:linear-gradient(90deg,var(--kiln),var(--bad));transition:width .1s linear}
   .mini-pad{position:relative;width:100%;aspect-ratio:1;border-radius:16px;touch-action:none;overflow:hidden;
     -webkit-user-select:none;user-select:none;
-    display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;
+    display:grid;gap:2px;
     background:radial-gradient(40% 34% at 38% 30%, color-mix(in srgb,#fff 42%, var(--tile,#c56a3c)) 0%, transparent 60%), var(--tile,#c56a3c);
     box-shadow:inset 0 -10px 22px rgba(0,0,0,.3), inset 0 8px 16px rgba(255,255,255,.22)}
   .lump{background-color:color-mix(in srgb,#2e2018 60%, transparent);
@@ -212,7 +213,7 @@
       <div class="sec-title"><h2>Matière première</h2><small id="clay-slots"></small></div>
       <div class="card" id="clay-card"></div>
 
-      <div class="sec-title" id="buyer-title" hidden><h2>Intendance</h2><small>achat automatique</small></div>
+      <div class="sec-title" id="buyer-title" hidden><h2>Approvisionnement</h2><small>muletiers</small></div>
       <div class="card" id="buyer-card" hidden></div>
 
       <div class="sec-title"><h2>Fabrication</h2><small id="craft-count"></small></div>
@@ -266,13 +267,21 @@
   const $ = id => document.getElementById(id);
 
   const RECIPES = [
-    {id:'plate',  name:'Tuile plate',           clay:2,  time:3,  value:6,   color:'#c56a3c', tech:null},
-    {id:'canal',  name:'Tuile canal',           clay:4,  time:6,  value:16,  color:'#a3472a', tech:'cintrage'},
-    {id:'vernis', name:'Carreau vernissé',      clay:7,  time:10, value:45,  color:'#2fa69a', tech:'emaillage'},
-    {id:'zellige',name:'Zellige',               clay:12, time:16, value:130, color:'#2f6fb0', tech:'zellige'},
-    {id:'or',     name:"Tuile émaillée d'or",   clay:20, time:24, value:380, color:'#e0a53c', tech:'dorure'},
+    {id:'plate',    name:'Tuile plate',          clay:2,   time:3,  value:6,     color:'#c56a3c', tech:null},
+    {id:'canal',    name:'Tuile canal',          clay:4,   time:6,  value:16,    color:'#a3472a', tech:'cintrage'},
+    {id:'vernis',   name:'Carreau vernissé',     clay:7,   time:10, value:45,    color:'#2fa69a', tech:'emaillage'},
+    {id:'zellige',  name:'Zellige',              clay:12,  time:16, value:130,   color:'#2f6fb0', tech:'zellige'},
+    {id:'or',       name:"Tuile émaillée d'or",  clay:20,  time:24, value:380,   color:'#e0a53c', tech:'dorure'},
+    {id:'mosaique', name:'Mosaïque byzantine',   clay:32,  time:34, value:1000,  color:'#7a4bb5', tech:'mosaique'},
+    {id:'azulejo',  name:'Azulejo peint',        clay:50,  time:48, value:2800,  color:'#2f8fd6', tech:'azulejo'},
+    {id:'imperiale',name:'Céramique impériale',  clay:80,  time:68, value:7800,  color:'#159068', tech:'imperiale'},
+    {id:'albatre',  name:"Fresque d'albâtre",    clay:130, time:95, value:22000, color:'#b9a67e', tech:'albatre'},
   ];
   const R = id => RECIPES.find(r => r.id === id);
+  // tiers de difficulté : 3 tuiles par tier depuis la tuile plate (1..X)
+  const tierOf   = r => Math.floor(RECIPES.indexOf(r)/3) + 1;
+  const gridOf   = tier => Math.min(2 + tier, 6);        // tier1 3×3, tier2 4×4, tier3 5×5…
+  const perCellMs= tier => Math.max(240, 560 - tier*70); // temps par case, décroissant = plus dur
 
   const METHODS = [
     {id:'cintrage',   name:'Cintrage',              desc:"Débloque la Tuile canal",           cost:60,    kind:'recipe'},
@@ -281,13 +290,17 @@
     {id:'apprentis',  name:'Recruter des apprentis',desc:"Embauche des ouvriers qui fabriquent tout seuls", cost:350, kind:'upg'},
     {id:'emaillage',  name:'Émaillage',             desc:"Débloque le Carreau vernissé",      cost:450,   kind:'recipe'},
     {id:'four',       name:'Four rapide',           desc:"Cuisson 25 % plus rapide",          cost:650,   kind:'upg'},
-    {id:'acheteur',   name:'Engager un intendant',  desc:"Débloque les acheteurs : rachat auto de l'argile quand le stock baisse", cost:700, kind:'upg'},
+    {id:'acheteur',   name:'Engager un muletier',   desc:"Débloque les muletiers : ils rapportent de l'argile par tournées régulières", cost:700, kind:'upg'},
     {id:'vendeur',    name:'Recruter un négociant',  desc:"Débloque les vendeurs : ils honorent les commandes en stock tout seuls", cost:1300, kind:'upg'},
     {id:'carnet',     name:'Carnet de commandes',   desc:"+2 commandes en attente",           cost:1000,  kind:'upg'},
     {id:'etabli3',    name:'Troisième établi',      desc:"+1 fabrication simultanée",         cost:1600,  kind:'upg'},
     {id:'zellige',    name:'Taille du zellige',     desc:"Débloque le Zellige",               cost:3200,  kind:'recipe'},
     {id:'reputation', name:"Réputation d'artisan",  desc:"Commandes payées +25 %",            cost:5500,  kind:'upg'},
     {id:'dorure',     name:'Dorure à la feuille',   desc:"Débloque la Tuile émaillée d'or",   cost:17000, kind:'recipe'},
+    {id:'mosaique',   name:'Art de la mosaïque',    desc:"Débloque la Mosaïque byzantine (tier 2)", cost:60000,   kind:'recipe'},
+    {id:'azulejo',    name:'Azulejo',               desc:"Débloque l'Azulejo peint (tier 3)",       cost:220000,  kind:'recipe'},
+    {id:'imperiale',  name:'Cuisson impériale',     desc:"Débloque la Céramique impériale (tier 3)",cost:800000,  kind:'recipe'},
+    {id:'albatre',    name:"Fresque d'albâtre",     desc:"Débloque la Fresque d'albâtre (tier 3)",  cost:3000000, kind:'recipe'},
   ];
 
   const CLIENTS = ["Le Sénateur Flavius","Villa Pompéienne","Temple d'Apollon","Livia Drusilla","Quintus le Marchand",
@@ -300,7 +313,7 @@
   let state = {
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
     workerPool:0, assign:{}, workerProg:{},
-    buyers:0, buyerPaused:false, sellers:0, sellerPaused:false, sellerProg:0,
+    buyers:0, buyerPaused:false, buyerProg:0, sellers:0, sellerPaused:false, sellerProg:0,
     nextOrderAt:0, lastSave:Date.now()
   };
 
@@ -320,7 +333,9 @@
   const assignedTotal = () => Object.values(state.assign).reduce((a,b)=>a+b, 0);
   const idleWorkers   = () => state.workerPool - assignedTotal();
   const buyerCost     = () => Math.floor(400 * Math.pow(1.7, state.buyers));
-  const buyerTarget   = () => state.buyers * 100;
+  const buyerTarget   = () => state.buyers * 200;
+  const BUYER_CD      = 5000; // durée d'une tournée du muletier (ms)
+  const buyerInterval = () => BUYER_CD / Math.max(1, state.buyers);
   const sellersOn     = () => has('vendeur');
   const sellerCost    = () => Math.floor(800 * Math.pow(1.7, state.sellers));
 
@@ -344,7 +359,7 @@
       state.learned = s.learned||{}; state.inventory = s.inventory||{};
       state.crafts = s.crafts||[]; state.orders = s.orders||[];
       state.workerProg = s.workerProg||{};
-      state.buyers = s.buyers||0; state.buyerPaused = !!s.buyerPaused;
+      state.buyers = s.buyers||0; state.buyerPaused = !!s.buyerPaused; state.buyerProg = s.buyerProg||0;
       state.sellers = s.sellers||0; state.sellerPaused = !!s.sellerPaused; state.sellerProg = s.sellerProg||0;
       // migration : ancien modèle {plate:2,...} -> pool total + répartition
       if(s.assign || s.workerPool != null){
@@ -409,14 +424,18 @@
   // ---------- clay-modelling mini-game ----------
   let mini = null;
   function openMini(recipe, onDone){
-    const pad = $('mini-pad'), N = 3, total = N*N;
-    $('mini-title').textContent = 'Modelage — ' + recipe.name;
+    const pad = $('mini-pad');
+    const tier = tierOf(recipe), N = gridOf(tier), total = N*N;
+    $('mini-title').textContent = `Modelage — ${recipe.name} · T${tier}`;
     pad.style.setProperty('--tile', recipe.color);
+    pad.style.gridTemplateColumns = `repeat(${N},1fr)`;
+    pad.style.gridTemplateRows = `repeat(${N},1fr)`;
     pad.innerHTML = '';
     for(let i=0;i<total;i++){ const d=document.createElement('div'); d.className='lump'; pad.appendChild(d); }
     $('mini-prog').textContent = 'Lissé : 0 %';
     $('mini-fill').style.width = '100%';
-    mini = { active:false, done:false, smoothed:0, total, onDone, start:performance.now(), dur:4500 };
+    const dur = total * perCellMs(tier);   // plus de cases + moins de temps/case = plus dur
+    mini = { active:false, done:false, smoothed:0, total, onDone, start:performance.now(), dur };
     $('mini').classList.add('show');
     requestAnimationFrame(miniLoop);
   }
@@ -551,20 +570,26 @@
     return changed;
   }
 
-  // acheteurs : rachètent l'argile pour la maintenir au-dessus d'un seuil
+  // muletiers : rapportent l'argile par tournées espacées d'un cooldown
   function runBuyers(dtMs){
     if(!buyersOn() || state.buyers <= 0 || state.buyerPaused) return false;
-    const target = buyerTarget();
-    if(state.clay >= target) return false;
-    const unit = clayUnit();
-    const maxByTime = state.buyers * 100 * (dtMs/1000);
-    const maxByMoney = Math.floor(state.money / unit);
-    const buy = Math.floor(Math.min(target - state.clay, maxByTime, maxByMoney));
-    if(buy < 1) return false;
-    let cost = Math.ceil(buy * unit);
-    if(cost > state.money) cost = Math.floor(state.money);
-    state.money -= cost; state.clay += buy;
-    return true;
+    state.buyerProg = (state.buyerProg||0) + dtMs;
+    const interval = buyerInterval();
+    let changed = false, guard = 0;
+    while(state.buyerProg >= interval && guard < 100000){
+      state.buyerProg -= interval;
+      const target = buyerTarget();
+      if(state.clay < target){
+        const unit = clayUnit();
+        const buy = Math.min(target - state.clay, Math.floor(state.money / unit));
+        if(buy >= 1){
+          const cost = Math.min(state.money, Math.ceil(buy * unit));
+          state.money -= cost; state.clay += buy; changed = true;
+        }
+      }
+      guard++;
+    }
+    return changed;
   }
   // ouvriers : fabrication automatique selon la répartition, sans mini-jeu ni bonus
   function runWorkers(dtMs){
@@ -614,12 +639,12 @@
     else {
       bt.hidden = false; bc.hidden = false;
       const bcost = buyerCost(), bp = state.buyerPaused;
-      const bstatus = state.buyers===0 ? "Rachète l'argile quand le stock baisse"
-        : bp ? "⏸ En pause" : `Maintient l'argile ≥ ${fmt(buyerTarget())}`;
+      const bstatus = state.buyers===0 ? "Rapporte l'argile par tournées régulières"
+        : bp ? "⏸ En pause" : `Charge jusqu'à ${fmt(buyerTarget())} argile · tournée / ${(buyerInterval()/1000).toFixed(1)}s`;
       bc.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div style="min-width:0">
-            <div style="font-weight:700">Acheteur ${state.buyers>0?`<span class="badge stock">×${state.buyers}</span>`:''}</div>
+            <div style="font-weight:700">Muletier ${state.buyers>0?`<span class="badge stock">×${state.buyers}</span>`:''}</div>
             <div style="font-size:12.5px;margin-top:3px;color:${bp?'var(--bad)':'var(--dim)'}">${bstatus}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
@@ -649,10 +674,11 @@
     // recipes
     $('recipe-card').innerHTML = knownRecipes().map(r => {
       const stock = state.inventory[r.id]||0;
+      const tier = tierOf(r), N = gridOf(tier);
       const canCraft = state.crafts.length < craftSlots() && state.clay >= r.clay;
       return `<div class="recipe">
         <div class="swatch" style="background:${r.color}"></div>
-        <div><div class="name">${r.name} ${stock>0?`<span class="badge stock">${stock} en stock</span>`:''}</div>
+        <div><div class="name">${r.name} <span class="badge tier">T${tier} · ${N}×${N}</span> ${stock>0?`<span class="badge stock">${stock} en stock</span>`:''}</div>
           <div class="req">${r.clay} argile · ${r.time}s de cuisson</div></div>
         <button class="btn" data-action="craft" data-id="${r.id}" ${canCraft?'':'disabled'}>Modeler</button>
       </div>`;
