@@ -327,17 +327,18 @@
   const rewardMult  = () => (has('reputation')?1.25:1);
   const knowsRecipe = r => r.tech === null || has(r.tech);
   const knownRecipes = () => RECIPES.filter(knowsRecipe);
+  const BUY_GROWTH    = 1.14; // multiplicateur de palier commun (sauf argile brute)
   const workersOn     = () => has('apprentis');
   const buyersOn      = () => has('acheteur');
-  const workerHireCost= () => Math.floor(80 * Math.pow(1.55, state.workerPool));
+  const workerHireCost= () => Math.floor(80 * Math.pow(BUY_GROWTH, state.workerPool));
   const assignedTotal = () => Object.values(state.assign).reduce((a,b)=>a+b, 0);
   const idleWorkers   = () => state.workerPool - assignedTotal();
-  const buyerCost     = () => Math.floor(400 * Math.pow(1.7, state.buyers));
+  const buyerCost     = () => Math.floor(400 * Math.pow(BUY_GROWTH, state.buyers));
   const buyerTarget   = () => state.buyers * 200;
   const BUYER_CD      = 5000; // durée d'une tournée du muletier (ms)
   const buyerInterval = () => BUYER_CD / Math.max(1, state.buyers);
   const sellersOn     = () => has('vendeur');
-  const sellerCost    = () => Math.floor(800 * Math.pow(1.7, state.sellers));
+  const sellerCost    = () => Math.floor(800 * Math.pow(BUY_GROWTH, state.sellers));
 
   // ---------- format ----------
   const SUF = ['','K','M','Md','B','T'];
