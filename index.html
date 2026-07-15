@@ -115,6 +115,12 @@
   .order .miss{font-size:12px;color:var(--bad)}
   .order.special{border-color:var(--kiln);box-shadow:0 0 0 1px var(--kiln), var(--shadow)}
   .prestige{font-size:10px;font-weight:800;color:#fff;background:var(--kiln);border-radius:20px;padding:1px 8px;letter-spacing:.03em;white-space:nowrap}
+  .reserve-wrap{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .reserve-lbl{font-size:12px;color:var(--dim);margin-bottom:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:12px;font-weight:700;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+  .chip.on{background:color-mix(in srgb,var(--bad) 16%, var(--surface-2));border-color:var(--bad);color:var(--bad)}
+  .chip:active{transform:scale(.95)}
   .mini-swatch{width:16px;height:16px;border-radius:4px;display:inline-block;vertical-align:middle}
 
   /* methods */
@@ -346,7 +352,7 @@
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
     workerPool:0, assign:{}, workerProg:{},
     buyers:0, buyerPaused:false, buyerProg:0, sellers:0, sellerPaused:false, sellerProg:0,
-    repLevel:0, speedLevel:0, nextOrderAt:0, lastSave:Date.now()
+    repLevel:0, speedLevel:0, reserved:{}, nextOrderAt:0, lastSave:Date.now()
   };
 
   // ---------- derived modifiers ----------
@@ -406,7 +412,7 @@
       state.workerProg = s.workerProg||{};
       state.buyers = s.buyers||0; state.buyerPaused = !!s.buyerPaused; state.buyerProg = s.buyerProg||0;
       state.sellers = s.sellers||0; state.sellerPaused = !!s.sellerPaused; state.sellerProg = s.sellerProg||0;
-      state.repLevel = s.repLevel||0; state.speedLevel = s.speedLevel||0;
+      state.repLevel = s.repLevel||0; state.speedLevel = s.speedLevel||0; state.reserved = s.reserved||{};
       // migration : ancien modèle {plate:2,...} -> pool total + répartition
       if(s.assign || s.workerPool != null){
         state.assign = s.assign||{}; state.workerPool = s.workerPool||0;
@@ -632,6 +638,12 @@
   }
   function toggleBuyer(){ state.buyerPaused = !state.buyerPaused; toast(state.buyerPaused?"Acheteurs en pause":"Acheteurs actifs"); save(); renderAll(); }
   function toggleSeller(){ state.sellerPaused = !state.sellerPaused; toast(state.sellerPaused?"Vendeurs en pause":"Vendeurs actifs"); save(); renderAll(); }
+  function toggleReserve(id){
+    if(!R(id)) return;
+    state.reserved[id] = !state.reserved[id];
+    toast(state.reserved[id] ? `${R(id).name} : gardée en réserve` : `${R(id).name} : vente auto réactivée`);
+    save(); renderAll();
+  }
 
   // vendeurs : livrent automatiquement la commande la plus payante en stock
   function runSellers(dtMs){
@@ -643,6 +655,7 @@
       for(let i = 0; i < state.sellers; i++){          // chaque vendeur livre 1 commande en parallèle
         let best = null;
         for(const o of state.orders){
+          if(state.reserved[o.tileId]) continue; // tuile réservée : pas de vente auto
           if((state.inventory[o.tileId]||0) >= o.qty && (!best || o.reward > best.reward)) best = o;
         }
         if(!best) break;
@@ -832,6 +845,12 @@
             ${state.sellers>0?`<button class="btn ghost" data-action="toggle-seller">${sp?'Reprendre':'Pause'}</button>`:''}
             <button class="btn money" data-action="hire-seller" ${state.money<scost?'disabled':''}>+1 · ${eur(scost)}</button>
           </div>
+        </div>
+        <div class="reserve-wrap">
+          <div class="reserve-lbl">Garder en réserve (non vendu auto) :</div>
+          <div class="chips">
+            ${knownRecipes().map(r => `<button class="chip${state.reserved[r.id]?' on':''}" data-action="reserve" data-id="${r.id}"><span class="mini-swatch" style="background:${r.color}"></span>${r.name}${state.reserved[r.id]?' 🔒':''}</button>`).join('')}
+          </div>
         </div>`;
     }
 
@@ -909,6 +928,7 @@
     else if(a==='toggle-seller'){ toggleSeller(); }
     else if(a==='rep-level'){ buyRepLevel(); }
     else if(a==='speed-level'){ buySpeedLevel(); }
+    else if(a==='reserve'){ toggleReserve(el.dataset.id); }
     else if(a==='theme'){
       const cur = document.documentElement.getAttribute('data-theme');
       const dark = cur ? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
