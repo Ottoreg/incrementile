@@ -205,6 +205,7 @@
     <div class="stat money"><div class="v" id="v-money">50 ₯</div><div class="l">Trésorerie</div></div>
     <div class="stat clay"><div class="v" id="v-clay">0</div><div class="l">Argile</div></div>
     <button class="mini-btn" data-action="theme" title="Thème">◑</button>
+    <button class="mini-btn" data-action="reset" title="Recommencer">↺</button>
   </div>
 
   <main>
@@ -361,7 +362,8 @@
   const eur = n => fmt(n) + ' ₯';
 
   // ---------- persistence ----------
-  function save(){ state.lastSave = Date.now(); try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){} }
+  let resetting = false;
+  function save(){ if(resetting) return; state.lastSave = Date.now(); try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){} }
   function load(){
     try{
       const s = JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); if(!s) return false;
@@ -823,6 +825,13 @@
       const cur = document.documentElement.getAttribute('data-theme');
       const dark = cur ? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
       document.documentElement.setAttribute('data-theme', dark?'light':'dark');
+    }
+    else if(a==='reset'){
+      if(confirm("Tout casser et recommencer l'atelier à zéro ?\nCette action est définitive.")){
+        resetting = true;                       // bloque la sauvegarde de fermeture (pagehide)
+        try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+        location.reload();
+      }
     }
   });
   function switchTab(t){
