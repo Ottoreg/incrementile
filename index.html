@@ -292,6 +292,10 @@
     {id:'four',       name:'Four rapide',           desc:"Cuisson 25 % plus rapide",          cost:650,   kind:'upg'},
     {id:'acheteur',   name:'Engager un muletier',   desc:"Débloque les muletiers : ils rapportent de l'argile par tournées régulières", cost:700, kind:'upg'},
     {id:'vendeur',    name:'Recruter un négociant',  desc:"Débloque les vendeurs : ils honorent les commandes en stock tout seuls", cost:1300, kind:'upg'},
+    {id:'moule2',     name:'Moules jumelés',         desc:"Chaque ouvrier produit 2 tuiles par cycle", cost:1500, kind:'upg'},
+    {id:'relais',     name:'Relais de poste',        desc:"Muletiers & vendeurs 30 % plus rapides (cooldown réduit)", cost:2500, kind:'upg'},
+    {id:'cadence',    name:'Cadence soutenue',       desc:"Ouvriers 30 % plus rapides", cost:3500, kind:'upg'},
+    {id:'moule3',     name:'Moules multiples',       desc:"Chaque ouvrier produit 3 tuiles par cycle", cost:22000, kind:'upg'},
     {id:'carnet',     name:'Carnet de commandes',   desc:"+2 commandes en attente",           cost:1000,  kind:'upg'},
     {id:'etabli3',    name:'Troisième établi',      desc:"+1 fabrication simultanée",         cost:1600,  kind:'upg'},
     {id:'zellige',    name:'Taille du zellige',     desc:"Débloque le Zellige",               cost:3200,  kind:'recipe'},
@@ -333,12 +337,17 @@
   const workerHireCost= () => Math.floor(80 * Math.pow(BUY_GROWTH, state.workerPool));
   const assignedTotal = () => Object.values(state.assign).reduce((a,b)=>a+b, 0);
   const idleWorkers   = () => state.workerPool - assignedTotal();
+  const cooldownMult  = () => has('relais') ? 0.7 : 1;   // méthode payante : -30 % de cooldown
   const buyerCost     = () => Math.floor(400 * Math.pow(BUY_GROWTH, state.buyers));
-  const buyerTarget   = () => state.buyers * 200;
-  const BUYER_CD      = 5000; // durée d'une tournée du muletier (ms)
-  const buyerInterval = () => BUYER_CD / Math.max(1, state.buyers);
+  const buyerTarget   = () => state.buyers * 400;
+  const BUYER_CD      = 30000; // tournée du muletier (ms) — fortement augmentée
+  const buyerInterval = () => BUYER_CD / Math.max(1, state.buyers) * cooldownMult();
   const sellersOn     = () => has('vendeur');
   const sellerCost    = () => Math.floor(800 * Math.pow(BUY_GROWTH, state.sellers));
+  const SELLER_CD     = 15000; // délai de base entre deux livraisons d'un vendeur (ms)
+  const sellerInterval= () => SELLER_CD * cooldownMult();
+  const workerYield     = () => has('moule3') ? 3 : has('moule2') ? 2 : 1; // tuiles par cycle
+  const workerCycleMult = () => has('cadence') ? 0.7 : 1;                        // ouvriers plus rapides
 
   // ---------- format ----------
   const SUF = ['','K','M','Md','B','T'];
@@ -553,7 +562,7 @@
   // vendeurs : livrent automatiquement la commande la plus payante en stock
   function runSellers(dtMs){
     if(!sellersOn() || state.sellers <= 0 || state.sellerPaused) return false;
-    const interval = 2500; // ms par livraison et par vendeur
+    const interval = sellerInterval(); // délai de base entre livraisons (accéléré par le nombre de vendeurs)
     let prog = (state.sellerProg||0) + dtMs*state.sellers, changed = false, guard = 0;
     while(prog >= interval && guard < 100000){
       let best = null;
@@ -595,15 +604,17 @@
   // ouvriers : fabrication automatique selon la répartition, sans mini-jeu ni bonus
   function runWorkers(dtMs){
     if(!workersOn()) return false;
+    const Y = workerYield();
     let changed = false;
     knownRecipes().forEach(r => {
       const w = state.assign[r.id]||0; if(w <= 0) return;
-      const threshold = r.time*1000*speedMult();
+      const threshold = r.time*1000*speedMult()*workerCycleMult();
       let prog = (state.workerProg[r.id]||0) + dtMs*w, guard = 0;
       while(prog >= threshold && guard < 100000){
-        if(state.clay < r.clay){ prog = threshold; break; }   // en attente d'argile
-        state.clay -= r.clay;
-        state.inventory[r.id] = (state.inventory[r.id]||0)+1;
+        const k = Math.min(Y, Math.floor(state.clay / r.clay)); // jusqu'à Y tuiles / cycle
+        if(k < 1){ prog = threshold; break; }                   // en attente d'argile
+        state.clay -= k*r.clay;
+        state.inventory[r.id] = (state.inventory[r.id]||0) + k;
         prog -= threshold; changed = true; guard++;
       }
       state.workerProg[r.id] = prog;
@@ -691,12 +702,14 @@
     else {
       wt.hidden = false; wc.hidden = false;
       const idle = idleWorkers(), hcost = workerHireCost();
+      const Y = workerYield();
       const rows = knownRecipes().map(r => {
         const n = state.assign[r.id]||0;
+        const eff = Math.round(r.time*speedMult()*workerCycleMult()*10)/10;
         return `<div class="recipe">
           <div class="swatch" style="background:${r.color}"></div>
           <div><div class="name">${r.name}</div>
-            <div class="req">${n>0?`${n} × 1 tuile / ${r.time}s`:'inactif'} · ${r.clay} argile</div></div>
+            <div class="req">${n>0?`${n} × ${Y} tuile${Y>1?'s':''} / ${eff}s`:'inactif'} · ${r.clay} argile/tuile</div></div>
           <div class="stepper">
             <button data-action="assign" data-id="${r.id}" data-delta="-1" ${n<=0?'disabled':''}>−</button>
             <span class="n">${n}</span>
@@ -720,7 +733,7 @@
     else {
       st.hidden = false; sc.hidden = false;
       const scost = sellerCost(), sp = state.sellerPaused;
-      const rate = (2.5/Math.max(1,state.sellers)).toFixed(1);
+      const rate = (sellerInterval()/1000/Math.max(1,state.sellers)).toFixed(1);
       const sstatus = state.sellers===0 ? "Honore les commandes en stock automatiquement"
         : sp ? "⏸ En pause" : `Livre la commande la plus payante · 1 / ${rate}s`;
       sc.innerHTML = `
