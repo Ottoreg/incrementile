@@ -121,6 +121,7 @@
   .chip{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:12px;font-weight:700;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;cursor:pointer;white-space:nowrap}
   .chip.on{background:color-mix(in srgb,var(--bad) 16%, var(--surface-2));border-color:var(--bad);color:var(--bad)}
   .chip:active{transform:scale(.95)}
+  .btn.reserved-btn{background:var(--bad)}
   .mini-swatch{width:16px;height:16px;border-radius:4px;display:inline-block;vertical-align:middle}
 
   /* methods */
@@ -163,8 +164,8 @@
     max-width:540px;margin:0 auto;
     background:color-mix(in srgb,var(--bg) 88%, transparent);backdrop-filter:blur(12px);
     border-top:1px solid var(--line);
-    display:grid;grid-template-columns:repeat(3,1fr);
-    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+    display:grid;grid-template-columns:repeat(4,1fr);
+    padding:8px 8px calc(8px + env(safe-area-inset-bottom));
   }
   .tab{background:none;border:none;color:var(--dim);font-family:inherit;font-size:11px;font-weight:700;
     display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px 0;border-radius:10px}
@@ -246,6 +247,13 @@
       <div id="orders-wrap" style="display:flex;flex-direction:column;gap:12px"></div>
     </section>
 
+    <!-- RÉSERVE -->
+    <section class="panel" id="panel-reserve">
+      <div class="sec-title"><h2>Réserve</h2><small>vente auto</small></div>
+      <div style="font-size:12.5px;color:var(--dim);margin:-4px 2px 2px">Les tuiles réservées ne sont pas vendues automatiquement par les vendeurs (la vente manuelle reste possible).</div>
+      <div class="card" id="reserve-list"></div>
+    </section>
+
     <!-- MÉTHODES -->
     <section class="panel" id="panel-methodes">
       <div class="sec-title"><h2>Apprendre de nouvelles méthodes</h2></div>
@@ -256,6 +264,7 @@
   <nav class="tabbar">
     <button class="tab active" data-action="tab" data-tab="atelier"><span class="ic">🏺</span>Atelier</button>
     <button class="tab" data-action="tab" data-tab="commandes"><span class="ic" style="position:relative">📋<span class="dot"></span></span>Commandes</button>
+    <button class="tab" data-action="tab" data-tab="reserve"><span class="ic">🔒</span>Réserve</button>
     <button class="tab" data-action="tab" data-tab="methodes"><span class="ic">📖</span>Méthodes</button>
   </nav>
 </div>
@@ -387,6 +396,7 @@
   const orderGenInterval= () => state.sellers > 0 ? Math.max(2500, Math.min(ORDER_INTERVAL, sellerInterval()/state.sellers*0.9)) : ORDER_INTERVAL;
   const workerYield     = () => has('moule3') ? 3 : has('moule2') ? 2 : 1; // tuiles par cycle
   const workerCycleMult = () => (has('cadence') ? 0.7 : 1) * Math.pow(0.95, state.speedLevel); // + niveau de cadence
+  const workerCycleMs   = r => Math.max(200, r.time*1000*speedMult()*workerCycleMult());       // plancher 0,2 s / cycle
   const speedLevelCost  = () => Math.floor(600 * Math.pow(1.14, state.speedLevel));
 
   // ---------- format ----------
@@ -700,7 +710,7 @@
     let changed = false;
     knownRecipes().forEach(r => {
       const w = state.assign[r.id]||0; if(w <= 0) return;
-      const threshold = r.time*1000*speedMult()*workerCycleMult();
+      const threshold = workerCycleMs(r); // plancher 0,2 s : évite la conso instantanée d'argile
       let prog = (state.workerProg[r.id]||0) + dtMs*w, guard = 0;
       while(prog >= threshold && guard < 100000){
         const k = Math.min(Y, Math.floor(state.clay / r.clay)); // jusqu'à Y tuiles / cycle
@@ -797,7 +807,7 @@
       const Y = workerYield();
       const rows = knownRecipes().map(r => {
         const n = state.assign[r.id]||0;
-        const eff = Math.round(r.time*speedMult()*workerCycleMult()*10)/10;
+        const eff = Math.round(workerCycleMs(r)/100)/10;
         return `<div class="recipe">
           <div class="swatch" style="background:${r.color}"></div>
           <div><div class="name">${r.name}</div>
@@ -845,12 +855,6 @@
             ${state.sellers>0?`<button class="btn ghost" data-action="toggle-seller">${sp?'Reprendre':'Pause'}</button>`:''}
             <button class="btn money" data-action="hire-seller" ${state.money<scost?'disabled':''}>+1 · ${eur(scost)}</button>
           </div>
-        </div>
-        <div class="reserve-wrap">
-          <div class="reserve-lbl">Garder en réserve (non vendu auto) :</div>
-          <div class="chips">
-            ${knownRecipes().map(r => `<button class="chip${state.reserved[r.id]?' on':''}" data-action="reserve" data-id="${r.id}"><span class="mini-swatch" style="background:${r.color}"></span>${r.name}${state.reserved[r.id]?' 🔒':''}</button>`).join('')}
-          </div>
         </div>`;
     }
 
@@ -884,6 +888,18 @@
     }).join('');
   }
 
+  function renderReserve(){
+    $('reserve-list').innerHTML = knownRecipes().map(r => {
+      const stock = state.inventory[r.id]||0, on = !!state.reserved[r.id];
+      return `<div class="recipe">
+        <div class="swatch" style="background:${r.color}"></div>
+        <div><div class="name">${r.name}</div>
+          <div class="req">${fmt(stock)} en stock</div></div>
+        <button class="btn ${on?'reserved-btn':'ghost'}" data-action="reserve" data-id="${r.id}">${on?'🔒 Réservée':'Vendue'}</button>
+      </div>`;
+    }).join('');
+  }
+
   function renderMethods(){
     $('methods-wrap').innerHTML = METHODS.map(m => {
       const learned = has(m.id), afford = state.money >= m.cost;
@@ -903,6 +919,7 @@
     renderTop();
     if(activeTab==='atelier') renderAtelier();
     else if(activeTab==='commandes') renderOrders();
+    else if(activeTab==='reserve') renderReserve();
     else renderMethods();
     // order notification dot
     const anyReady = state.orders.some(o => (state.inventory[o.tileId]||0) >= o.qty);
