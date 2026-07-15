@@ -301,11 +301,15 @@
     {id:'etabli3',    name:'Troisième établi',      desc:"+1 fabrication simultanée",         cost:1600,  kind:'upg'},
     {id:'zellige',    name:'Taille du zellige',     desc:"Débloque le Zellige",               cost:3200,  kind:'recipe'},
     {id:'reputation', name:"Réputation d'artisan",  desc:"Commandes payées +25 %",            cost:5500,  kind:'upg'},
+    {id:'gros1',      name:'Commandes en gros',     desc:"Les clients commandent une part de ton stock (+5 %)", cost:25000, kind:'upg'},
+    {id:'renom2',     name:'Renommée régionale',    desc:"Commandes payées +25 %",            cost:40000, kind:'upg'},
     {id:'dorure',     name:'Dorure à la feuille',   desc:"Débloque la Tuile émaillée d'or",   cost:17000, kind:'recipe'},
     {id:'mosaique',   name:'Art de la mosaïque',    desc:"Débloque la Mosaïque byzantine (tier 2)", cost:60000,   kind:'recipe'},
     {id:'azulejo',    name:'Azulejo',               desc:"Débloque l'Azulejo peint (tier 3)",       cost:220000,  kind:'recipe'},
     {id:'imperiale',  name:'Cuisson impériale',     desc:"Débloque la Céramique impériale (tier 3)",cost:800000,  kind:'recipe'},
     {id:'albatre',    name:"Fresque d'albâtre",     desc:"Débloque la Fresque d'albâtre (tier 3)",  cost:3000000, kind:'recipe'},
+    {id:'gros2',      name:'Commandes en lot',      desc:"Part du stock commandée +10 %",     cost:300000,  kind:'upg'},
+    {id:'renom3',     name:'Gloire impériale',      desc:"Commandes payées +50 %",            cost:600000,  kind:'upg'},
   ];
 
   const CLIENTS = ["Le Sénateur Flavius","Villa Pompéienne","Temple d'Apollon","Livia Drusilla","Quintus le Marchand",
@@ -329,7 +333,8 @@
   const clayUnit    = () => CLAY_UNIT * (has('fournisseur')?0.75:1);
   const bundlePrice = () => Math.ceil(CLAY_BUNDLE * clayUnit());
   const speedMult   = () => (has('four')?0.75:1);
-  const rewardMult  = () => (has('reputation')?1.25:1);
+  const rewardMult  = () => 1 + (has('reputation')?0.25:0) + (has('renom2')?0.25:0) + (has('renom3')?0.5:0);
+  const bulkFactor  = () => (has('gros1')?0.05:0) + (has('gros2')?0.10:0); // part du stock commandée
   const knowsRecipe = r => r.tech === null || has(r.tech);
   const knownRecipes = () => RECIPES.filter(knowsRecipe);
   const BUY_GROWTH    = 1.14; // multiplicateur de palier commun (sauf argile brute)
@@ -398,7 +403,9 @@
   function makeOrder(){
     const pool = knownRecipes();
     const r = pool[Math.floor(Math.random()*pool.length)];
-    const qty = 2 + Math.floor(Math.random()*5);
+    const base = 2 + Math.floor(Math.random()*5);                          // 2..6
+    const bulk = Math.floor((state.inventory[r.id]||0) * bulkFactor());    // grossit avec le stock
+    const qty = base + bulk;
     const reward = Math.round(r.value * qty * (1.9 + Math.random()*0.7) * rewardMult());
     return { id:state.orderSeq++, tileId:r.id, qty, reward, client:CLIENTS[Math.floor(Math.random()*CLIENTS.length)] };
   }
@@ -767,10 +774,10 @@
       return `<div class="card order">
         <div class="top">
           <div><div class="client">${o.client}</div>
-            <div class="want"><span class="mini-swatch" style="background:${r.color}"></span>${o.qty} × ${r.name}</div></div>
+            <div class="want"><span class="mini-swatch" style="background:${r.color}"></span>${fmt(o.qty)} × ${r.name}</div></div>
           <div class="reward">${eur(o.reward)}</div>
         </div>
-        <div class="stockline ${ok?'':'miss'}">${ok?`En stock : ${stock}`:`Il te manque ${miss} tuile${miss>1?'s':''}`}</div>
+        <div class="stockline ${ok?'':'miss'}">${ok?`En stock : ${fmt(stock)}`:`Il te manque ${fmt(miss)} tuile${miss>1?'s':''}`}</div>
         <div class="actions">
           <button class="refuse" data-action="refuse" data-id="${o.id}">Refuser</button>
           <button class="btn money" data-action="deliver" data-id="${o.id}" ${ok?'':'disabled'}>Livrer</button>
