@@ -360,7 +360,7 @@
   let state = {
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
     workerPool:0, assign:{}, workerProg:{},
-    buyers:0, buyerPaused:false, buyerProg:0, sellers:0, sellerPaused:false, sellerProg:0,
+    buyers:0, buyerPaused:false, buyerProg:0, sellers:0, sellerPaused:false, sellerProgs:[],
     repLevel:0, speedLevel:0, reserved:{}, nextOrderAt:0, lastSave:Date.now()
   };
 
@@ -390,7 +390,7 @@
   const buyerInterval = () => BUYER_CD * cooldownMult();
   const sellersOn     = () => has('vendeur');
   const sellerCost    = () => Math.floor(800 * Math.pow(BUY_GROWTH, state.sellers));
-  const SELLER_CD     = 15000; // délai de base entre deux livraisons d'un vendeur (ms)
+  const SELLER_CD     = 20000; // délai de base entre deux livraisons d'un vendeur (ms)
   const sellerInterval= () => SELLER_CD * cooldownMult();
   // commandes générées au rythme des ventes auto (un peu plus vite que les vendeurs ne livrent)
   const orderGenInterval= () => state.sellers > 0 ? Math.max(2500, Math.min(ORDER_INTERVAL, sellerInterval()/state.sellers*0.9)) : ORDER_INTERVAL;
@@ -421,7 +421,8 @@
       state.crafts = s.crafts||[]; state.orders = s.orders||[];
       state.workerProg = s.workerProg||{};
       state.buyers = s.buyers||0; state.buyerPaused = !!s.buyerPaused; state.buyerProg = s.buyerProg||0;
-      state.sellers = s.sellers||0; state.sellerPaused = !!s.sellerPaused; state.sellerProg = s.sellerProg||0;
+      state.sellers = s.sellers||0; state.sellerPaused = !!s.sellerPaused;
+      state.sellerProgs = Array.isArray(s.sellerProgs) ? s.sellerProgs : [];
       state.repLevel = s.repLevel||0; state.speedLevel = s.speedLevel||0; state.reserved = s.reserved||{};
       // migration : ancien modèle {plate:2,...} -> pool total + répartition
       if(s.assign || s.workerPool != null){
@@ -659,27 +660,30 @@
   // vendeurs : livrent automatiquement la commande la plus payante en stock
   function runSellers(dtMs){
     if(!sellersOn() || state.sellers <= 0 || state.sellerPaused) return false;
-    const interval = sellerInterval(); // cooldown FIXE par vendeur
-    let prog = (state.sellerProg||0) + dtMs, changed = false, guard = 0;
-    while(prog >= interval && guard < 100000){
-      let delivered = 0;
-      for(let i = 0; i < state.sellers; i++){          // chaque vendeur livre 1 commande en parallèle
+    const interval = sellerInterval(); // cooldown par vendeur
+    if(!Array.isArray(state.sellerProgs)) state.sellerProgs = [];
+    // un minuteur indépendant par vendeur, décalé aléatoirement pour étaler les livraisons
+    while(state.sellerProgs.length < state.sellers) state.sellerProgs.push(Math.random()*interval);
+    if(state.sellerProgs.length > state.sellers) state.sellerProgs.length = state.sellers;
+
+    let changed = false;
+    for(let s = 0; s < state.sellers; s++){
+      let prog = state.sellerProgs[s] + dtMs, guard = 0;
+      while(prog >= interval && guard < 100000){
         let best = null;
         for(const o of state.orders){
           if(state.reserved[o.tileId]) continue; // tuile réservée : pas de vente auto
           if((state.inventory[o.tileId]||0) >= o.qty && (!best || o.reward > best.reward)) best = o;
         }
-        if(!best) break;
+        if(!best){ prog = interval; break; } // rien à livrer : ce vendeur attend, prêt
         state.inventory[best.tileId] -= best.qty;
         state.money += best.reward;
         state.orders = state.orders.filter(x => x.id !== best.id);
-        changed = true; delivered++;
+        state.nextOrderAt = Math.min(state.nextOrderAt, Date.now()+6000);
+        prog -= interval; changed = true; guard++;
       }
-      if(delivered > 0) state.nextOrderAt = Math.min(state.nextOrderAt, Date.now()+6000);
-      prog -= interval; guard++;
-      if(delivered === 0){ prog = Math.min(prog, interval); break; } // rien à livrer : on attend
+      state.sellerProgs[s] = prog;
     }
-    state.sellerProg = prog;
     return changed;
   }
 
