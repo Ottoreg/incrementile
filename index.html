@@ -17,27 +17,27 @@
 <style>
   :root{
     --bg:#E7DACB; --bg2:#F0E7DA; --surface:#FBF5EC; --surface-2:#F3E9DB;
-    --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545;
+    --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545; --wall:#6b5540;
     --clay:#B85C30; --glaze:#1E8A7E; --kiln:#B7791A; --money:#2f8f5b; --bad:#C0492B;
     --shadow:0 1px 2px rgba(60,35,15,.10), 0 8px 24px rgba(60,35,15,.08);
   }
   @media (prefers-color-scheme: dark){
     :root{
       --bg:#17110E; --bg2:#1E1712; --surface:#241A15; --surface-2:#2C211A;
-      --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87;
+      --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87; --wall:#8a7358;
       --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --money:#5ec98a; --bad:#E4795C;
       --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
     }
   }
   :root[data-theme="light"]{
     --bg:#E7DACB; --bg2:#F0E7DA; --surface:#FBF5EC; --surface-2:#F3E9DB;
-    --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545;
+    --line:#D8C6B2; --text:#2A1D14; --dim:#6B5545; --wall:#6b5540;
     --clay:#B85C30; --glaze:#1E8A7E; --kiln:#B7791A; --money:#2f8f5b; --bad:#C0492B;
     --shadow:0 1px 2px rgba(60,35,15,.10), 0 8px 24px rgba(60,35,15,.08);
   }
   :root[data-theme="dark"]{
     --bg:#17110E; --bg2:#1E1712; --surface:#241A15; --surface-2:#2C211A;
-    --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87;
+    --line:#3A2C22; --text:#F3E7DC; --dim:#B39A87; --wall:#8a7358;
     --clay:#D07A45; --glaze:#35B3A5; --kiln:#F0A63C; --money:#5ec98a; --bad:#E4795C;
     --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
   }
@@ -211,7 +211,7 @@
   .path-info{text-align:center;font-weight:800;font-size:13px;color:var(--clay);font-variant-numeric:tabular-nums}
   .path-grid{position:relative;width:100%;aspect-ratio:1;display:grid;gap:3px;touch-action:none;-webkit-user-select:none;user-select:none}
   .pcell{border-radius:6px;background:var(--surface-2);display:grid;place-items:center;font-size:min(5.5vw,20px);line-height:1}
-  .pcell.wall{background:color-mix(in srgb,#2e2018 55%, var(--line))}
+  .pcell.wall{background:var(--wall);box-shadow:inset 0 -3px 5px rgba(0,0,0,.25)}
   .pcell.path{background:var(--kiln)}
   .pcell.start{background:var(--clay)}
   .pcell.end{box-shadow:inset 0 0 0 2px var(--money)}
