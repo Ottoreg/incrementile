@@ -205,6 +205,15 @@
   .mini-prog{text-align:center;font-weight:800;font-variant-numeric:tabular-nums;color:var(--clay)}
   .mini-hint{font-size:12px;color:var(--dim);text-align:center;line-height:1.45}
 
+  /* delivery path-finding mini-game */
+  .path-info{text-align:center;font-weight:800;font-size:13px;color:var(--clay);font-variant-numeric:tabular-nums}
+  .path-grid{position:relative;width:100%;aspect-ratio:1;display:grid;gap:3px;touch-action:none;-webkit-user-select:none;user-select:none}
+  .pcell{border-radius:6px;background:var(--surface-2);display:grid;place-items:center;font-size:min(5.5vw,20px);line-height:1}
+  .pcell.wall{background:color-mix(in srgb,#2e2018 55%, var(--line))}
+  .pcell.path{background:var(--kiln)}
+  .pcell.start{background:var(--clay)}
+  .pcell.end{box-shadow:inset 0 0 0 2px var(--money)}
+
   @media (prefers-reduced-motion: reduce){*{animation-duration:.001ms !important;transition:none !important}}
 </style>
 </head>
@@ -276,6 +285,15 @@
     <div class="mini-pad" id="mini-pad"></div>
     <div class="mini-prog" id="mini-prog">Lissé : 0 %</div>
     <div class="mini-hint">Passe ton doigt sur toute la surface pour lisser l'argile avant la cuisson.</div>
+  </div>
+</div>
+
+<div class="mini-overlay" id="pathmini">
+  <div class="mini-card">
+    <div class="mini-head"><span id="path-title">Livraison</span><button class="mini-x" id="path-cancel" aria-label="Annuler">✕</button></div>
+    <div class="path-info" id="path-info"></div>
+    <div class="path-grid" id="path-grid"></div>
+    <div class="mini-hint">Glisse ton doigt de l'atelier 🏺 jusqu'au client 🚩 pour tracer la route. Plus elle est courte, mieux tu es payé.</div>
   </div>
 </div>
 
@@ -574,16 +592,104 @@
     tapTimer = setTimeout(() => { tapLock = false; flushRender(); }, 500); // secours si aucun click ne suit
   }, true);
   document.addEventListener('click', () => { tapLock = false; clearTimeout(tapTimer); setTimeout(flushRender, 0); }, true);
-  function deliver(oid){
+  function deliver(oid){ // livraison manuelle : ouvre le mini-jeu d'itinéraire
+    const o = state.orders.find(x => x.id === oid); if(!o) return;
+    if((state.inventory[o.tileId]||0) < o.qty) return toast("Pas assez de tuiles en stock");
+    openPath(o, factor => doDeliver(oid, factor));
+  }
+  function doDeliver(oid, factor){
     const o = state.orders.find(x => x.id === oid); if(!o) return;
     if((state.inventory[o.tileId]||0) < o.qty) return;
     state.inventory[o.tileId] -= o.qty;
-    state.money += o.reward;
+    const paid = Math.round(o.reward * factor);
+    state.money += paid;
     state.orders = state.orders.filter(x => x.id !== oid);
     state.nextOrderAt = Math.min(state.nextOrderAt, Date.now()+6000);
-    toast(`Commande livrée à ${o.client} · <b>+${eur(o.reward)}</b>`);
+    toast(`Livré à ${o.client} · <b>+${eur(paid)}</b>${factor<0.999?` · route ${Math.round(factor*100)} %`:''}`);
     save(); renderAll();
   }
+
+  // ---------- delivery path-finding mini-game ----------
+  let pathG = null;
+  function bfs(grid, N, s, e){
+    const dist = new Array(N*N).fill(-1); dist[s] = 0; const q = [s];
+    for(let h=0; h<q.length; h++){
+      const c = q[h]; if(c === e) return dist[c];
+      const r = Math.floor(c/N), col = c%N, nb = [];
+      if(r>0) nb.push(c-N); if(r<N-1) nb.push(c+N);
+      if(col>0) nb.push(c-1); if(col<N-1) nb.push(c+1);
+      for(const n of nb){ if(grid[n]===0 && dist[n]<0){ dist[n] = dist[c]+1; q.push(n); } }
+    }
+    return dist[e];
+  }
+  const adjacent = (a,b,N) => Math.abs(Math.floor(a/N)-Math.floor(b/N)) + Math.abs(a%N - b%N) === 1;
+  function openPath(order, onDone){
+    const N = 6, s = 0, e = N*N-1;
+    let grid, optimal = -1;
+    for(let a=0; a<50 && optimal<0; a++){
+      grid = Array.from({length:N*N}, () => Math.random() < 0.22 ? 1 : 0);
+      grid[s] = 0; grid[e] = 0;
+      optimal = bfs(grid, N, s, e);
+    }
+    if(optimal < 0){ grid = new Array(N*N).fill(0); optimal = bfs(grid, N, s, e); }
+    pathG = { N, grid, start:s, end:e, optimal, path:[s], onDone, active:false, done:false, cells:[] };
+    $('path-title').textContent = `Livraison — ${order.client}`;
+    const g = $('path-grid');
+    g.style.gridTemplateColumns = `repeat(${N},1fr)`;
+    g.style.gridTemplateRows = `repeat(${N},1fr)`;
+    g.innerHTML = '';
+    for(let i=0;i<N*N;i++){
+      const d = document.createElement('div');
+      d.className = 'pcell' + (grid[i] ? ' wall' : '');
+      if(i===s){ d.classList.add('start'); d.textContent = '🏺'; }
+      else if(i===e){ d.classList.add('end'); d.textContent = '🚩'; }
+      d.dataset.i = i;
+      g.appendChild(d); pathG.cells.push(d);
+    }
+    updatePath();
+    $('pathmini').classList.add('show');
+  }
+  function updatePath(){
+    if(!pathG) return;
+    const inPath = new Set(pathG.path);
+    pathG.cells.forEach((d,i) => d.classList.toggle('path', inPath.has(i)));
+    $('path-info').textContent = `Route : ${pathG.path.length-1} · optimal : ${pathG.optimal}`;
+  }
+  function pcellFrom(x,y){
+    const el = document.elementFromPoint(x,y);
+    return (el && el.classList.contains('pcell')) ? parseInt(el.dataset.i,10) : -1;
+  }
+  function extendPath(i){
+    const path = pathG.path, last = path[path.length-1];
+    if(i<0 || i===last || pathG.grid[i]===1) return;
+    if(path.length>=2 && i===path[path.length-2]){ path.pop(); updatePath(); return; } // retour arrière
+    if(adjacent(i,last,pathG.N) && !path.includes(i)){
+      path.push(i); updatePath();
+      if(i===pathG.end) finishPath();
+    }
+  }
+  function finishPath(){
+    if(!pathG || pathG.done) return;
+    pathG.done = true; pathG.active = false;
+    const len = pathG.path.length-1, ratio = len/Math.max(1,pathG.optimal);
+    const factor = Math.max(0.6, 1 - 0.25*(ratio-1)); // route trop longue = un peu moins payé
+    const cb = pathG.onDone; pathG = null;
+    $('pathmini').classList.remove('show');
+    if(pointerDown) swallowClick = true; // évite le clic fantôme au relâchement
+    cb(factor);
+  }
+  $('path-cancel').addEventListener('click', () => { if(pathG){ pathG = null; $('pathmini').classList.remove('show'); } });
+  $('path-grid').addEventListener('pointerdown', e => {
+    if(!pathG || pathG.done) return;
+    const i = pcellFrom(e.clientX, e.clientY); if(i<0) return;
+    e.preventDefault();
+    if(i===pathG.start){ pathG.path = [pathG.start]; updatePath(); pathG.active = true; }
+    else if(i===pathG.path[pathG.path.length-1]){ pathG.active = true; }
+  });
+  document.addEventListener('pointermove', e => {
+    if(pathG && pathG.active && !pathG.done){ e.preventDefault(); extendPath(pcellFrom(e.clientX, e.clientY)); }
+  }, {passive:false});
+  document.addEventListener('pointerup', () => { if(pathG) pathG.active = false; });
   function learn(id){
     const m = METHODS.find(x => x.id === id); if(!m || has(id)) return;
     if(state.money < m.cost) return toast("Pas encore les moyens d'apprendre ça");
