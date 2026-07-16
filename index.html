@@ -151,6 +151,8 @@
   .stepper button:active{transform:scale(.92)}
   .stepper button:disabled{opacity:.35}
   .stepper .n{min-width:18px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
+  .stepper .maxbtn{width:auto;padding:0 9px;font-size:12px;font-weight:800;color:var(--money)}
+  .linkbtn{background:none;border:none;color:var(--glaze);font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
 
   /* order refuse + stock line */
   .order .stockline{font-size:12.5px;color:var(--dim);margin-top:9px}
@@ -377,7 +379,7 @@
 
   let state = {
     money:50, clay:0, learned:{}, inventory:{}, crafts:[], orders:[], orderSeq:1,
-    workerPool:0, assign:{}, workerProg:{},
+    workerPool:0, assign:{}, workerProg:{}, workerPaused:false,
     buyers:0, buyerPaused:false, buyerProg:0, sellers:0, sellerPaused:false, sellerProgs:[],
     repLevel:0, speedLevel:0, reserved:{}, nextOrderAt:0, lastSave:Date.now()
   };
@@ -449,6 +451,7 @@
         state.assign = { ...s.workers };
         state.workerPool = Object.values(s.workers).reduce((a,b)=>a+b, 0);
       } else { state.assign = {}; state.workerPool = 0; }
+      state.workerPaused = !!s.workerPaused;
       return true;
     }catch(e){ return false; }
   }
@@ -717,6 +720,20 @@
     }
     save(); renderAll();
   }
+  function toggleWorker(){ state.workerPaused = !state.workerPaused; toast(state.workerPaused?"Ouvriers en pause":"Ouvriers au travail"); save(); renderAll(); }
+  function assignMax(id){
+    if(!R(id)) return;
+    const idle = idleWorkers();
+    if(idle <= 0) return toast("Aucun ouvrier au repos");
+    state.assign[id] = (state.assign[id]||0) + idle;
+    save(); renderAll();
+  }
+  function idleAll(){
+    if(assignedTotal() <= 0) return;
+    state.assign = {};
+    toast("Ouvriers ramenés au repos");
+    save(); renderAll();
+  }
   function hireBuyer(){
     if(!buyersOn()) return;
     const cost = buyerCost();
@@ -816,7 +833,7 @@
   }
   // ouvriers : fabrication automatique selon la répartition, sans mini-jeu ni bonus
   function runWorkers(dtMs){
-    if(!workersOn()) return false;
+    if(!workersOn() || state.workerPaused) return false;
     const Y = workerYield();
     let changed = false;
     knownRecipes().forEach(r => {
@@ -927,15 +944,20 @@
             <button data-action="assign" data-id="${r.id}" data-delta="-1" ${n<=0?'disabled':''}>−</button>
             <span class="n">${n}</span>
             <button data-action="assign" data-id="${r.id}" data-delta="1" ${idle<=0?'disabled':''}>+</button>
+            <button class="maxbtn" data-action="assign-max" data-id="${r.id}" ${idle<=0?'disabled':''}>max</button>
           </div>
         </div>`;
       }).join('');
       const scost = speedLevelCost();
       const speedPct = Math.round((1 - Math.pow(0.95, state.speedLevel)) * 100);
+      const wp = state.workerPaused, assigned = assignedTotal();
       wc.innerHTML = `
         <div class="worker-head">
-          <div class="wh-l"><b>${state.workerPool}</b> ouvrier${state.workerPool>1?'s':''}<div class="idle">${idle} au repos</div></div>
-          <button class="btn money" data-action="hire" ${state.money<hcost?'disabled':''}>Embaucher · ${eur(hcost)}</button>
+          <div class="wh-l"><b>${state.workerPool}</b> ouvrier${state.workerPool>1?'s':''}${wp?' <span style="color:var(--bad)">⏸</span>':''}<div class="idle">${idle} au repos${assigned>0?` · <button class="linkbtn" data-action="idle-all">tout libérer</button>`:''}</div></div>
+          <div style="display:flex;gap:8px">
+            ${state.workerPool>0?`<button class="btn ghost" data-action="toggle-worker">${wp?'Reprendre':'Pause'}</button>`:''}
+            <button class="btn money" data-action="hire" ${state.money<hcost?'disabled':''}>Embaucher · ${eur(hcost)}</button>
+          </div>
         </div>
         <div class="lvl-row">
           <div><div style="font-weight:700;font-size:13.5px">Cadence · Niv ${state.speedLevel}</div>
@@ -1050,6 +1072,9 @@
     else if(a==='learn'){ learn(el.dataset.id); }
     else if(a==='hire'){ hireWorker(); }
     else if(a==='assign'){ assignWorker(el.dataset.id, parseInt(el.dataset.delta,10)); }
+    else if(a==='assign-max'){ assignMax(el.dataset.id); }
+    else if(a==='idle-all'){ idleAll(); }
+    else if(a==='toggle-worker'){ toggleWorker(); }
     else if(a==='hire-buyer'){ hireBuyer(); }
     else if(a==='hire-seller'){ hireSeller(); }
     else if(a==='toggle-buyer'){ toggleBuyer(); }
